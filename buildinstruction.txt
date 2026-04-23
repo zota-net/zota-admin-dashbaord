@@ -1,0 +1,58 @@
+You are tasked with building an Admin Application based on an existing Client Application.
+
+Your goal is NOT to duplicate the client app directly, but to intelligently transform its functionality and design into an ADMIN-CONTROL SYSTEM.
+
+CORE PRINCIPLES:
+
+1. DESIGN CONSISTENCY
+- Reuse the design system of the client application (colors, typography, spacing, components, layout patterns).
+- Maintain visual familiarity, but adapt layouts to suit admin workflows (tables, dashboards, controls, analytics).
+
+2. FUNCTIONAL TRANSFORMATION (VERY IMPORTANT)
+- The admin app must CONTROL the client app, not mirror it.
+- Every client-facing feature should have a corresponding control interface in admin.
+
+Examples:
+- If client has "posts" → admin manages posts (CRUD, moderation, visibility toggles)
+- If client has "users" → admin manages users (roles, bans, permissions, activity logs)
+- If client has "content" → admin edits, approves, schedules, deletes
+- If client has "media uploads" → admin monitors, filters, and manages storage
+
+3. STRICT SEPARATION OF CONCERNS
+- DO NOT copy client UI pages into admin.
+- DO NOT expose admin-only features to client.
+- DO NOT make admin look like a user-facing experience.
+- Admin is for control, monitoring, configuration, and management ONLY.
+
+4. ADMIN UX PATTERNS
+- Use dashboards, tables, filters, search, pagination
+- Include bulk actions (delete, approve, export, etc.)
+- Include role-based access control
+- Include logs and system insights where relevant
+
+5. ARCHITECTURE MAPPING
+For every client feature:
+- Identify its data source
+- Identify its actions
+- Build admin controls around those actions
+
+6. SCALABILITY
+- Design admin in a modular way (each domain: users, content, analytics, settings)
+- Ensure easy extension for future features
+
+7. OUTPUT FORMAT
+- Clearly map:
+  a) Client Feature → Admin Control Equivalent
+  b) UI Component transformation
+  c) API interaction changes (read vs manage vs override)
+
+8. EXTRA (IMPORTANT THINKING)
+- Think like a system operator, not a user
+- Admin should be able to:
+  - Override client behavior
+  - Monitor activity
+  - Enforce rules
+  - Configure system-wide settings
+
+FINAL GOAL:
+Transform a user experience system into a control panel system while preserving design identity but changing intent and functionality completely.
