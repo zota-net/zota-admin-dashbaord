@@ -4,12 +4,15 @@ import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 
 type Voucher = {
-  id?: string | number;
-  code?: string;
-  name?: string;
-  amount?: string;
-  expiry?: string;
-  status?: string;
+  id: string;
+  code: string;
+  discountType: string;
+  discount: string;
+  validFrom: string;
+  validUntil: string;
+  usages: number;
+  limit: number;
+  status: string;
 };
 
 export const voucherColumns: Array<{
@@ -19,11 +22,15 @@ export const voucherColumns: Array<{
   width?: string;
 }> = [
   { header: 'Code', accessor: 'code' },
-  { header: 'Name', accessor: 'name' },
-  { header: 'Amount', accessor: 'amount' },
-  { header: 'Expiry', accessor: 'expiry' },
+  { header: 'Discount Type', accessor: 'discountType' },
+  { header: 'Discount', accessor: 'discount' },
+  { header: 'Valid From', accessor: 'validFrom' },
+  { header: 'Valid Until', accessor: 'validUntil' },
+  { header: 'Usages', accessor: 'usages' },
+  { header: 'Limit', accessor: 'limit' },
   {
     header: 'Status',
+    accessor: 'status',
     render: (row: Voucher) => (
       <Badge variant={row.status === 'Active' ? 'default' : 'secondary'}>
         {row.status}

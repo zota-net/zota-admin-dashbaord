@@ -4,10 +4,12 @@ import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 
 type Log = {
-  id?: string | number;
-  level?: string;
-  message?: string;
-  timestamp?: string;
+  id: string;
+  timestamp: string;
+  action: string;
+  user: string;
+  resource: string;
+  status: string;
 };
 
 export const logColumns: Array<{
@@ -16,19 +18,19 @@ export const logColumns: Array<{
   render?: (row: Log) => React.ReactNode;
   width?: string;
 }> = [
+  { header: 'Timestamp', accessor: 'timestamp' },
+  { header: 'Action', accessor: 'action' },
+  { header: 'User', accessor: 'user' },
+  { header: 'Resource', accessor: 'resource' },
   {
-    header: 'Level',
+    header: 'Status',
+    accessor: 'status',
     render: (row: Log) => (
-      <Badge variant={row.level === 'error' ? 'destructive' : 'secondary'}>
-        {row.level}
+      <Badge variant={row.status === 'Success' ? 'default' : 'destructive'}>
+        {row.status}
       </Badge>
     ),
   },
-  {
-    header: 'Message',
-    render: (row: Log) => <div className="truncate max-w-xs">{row.message}</div>,
-  },
-  { header: 'Time', accessor: 'timestamp' },
 ];
 
 export type { Log };

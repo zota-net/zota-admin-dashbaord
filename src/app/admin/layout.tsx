@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { AdminHeader } from '@/components/admin/header';
 import { AdminSidebar } from '@/components/admin/sidebar';
 import { useAdminStore } from '@/lib/store/admin-store';
-import { LoadingOverlay } from '@/components/common';
 
 export default function AdminLayout({
   children,
@@ -13,27 +12,34 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, checkSession } = useAdminStore();
   const [isMobile, setIsMobile] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setIsMobile(window.innerWidth < 1024);
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
+    if (pathname === '/admin/login') {
+      setChecked(true);
+      return;
+    }
+
     const isValid = checkSession();
     if (!isAuthenticated && !isValid) {
-      router.push('/login');
+      router.replace('/admin/login');
+    } else {
+      setChecked(true);
     }
-  }, [isAuthenticated, checkSession, router]);
+  }, [pathname, isAuthenticated, checkSession, router]);
 
-  if (!isAuthenticated) {
-    return <LoadingOverlay show={true} text="Verifying session..." />;
+  if (!checked || pathname === '/admin/login') {
+    return <>{children}</>;
   }
 
   const sidebarWidth = 280;

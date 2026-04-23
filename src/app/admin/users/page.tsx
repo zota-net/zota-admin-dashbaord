@@ -56,7 +56,12 @@ import { PageTransition, StaggerContainer, StaggerItem } from '@/components/comm
 import { clientsService, reportsService } from '@/lib/api';
 import type { Client, ClientReport } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
-import { toast } from 'sonner';
+
+// Simple toast replacement
+const toast = {
+  success: (msg: string) => console.log(msg),
+  error: (msg: string) => console.error(msg),
+};
 
 const statusConfig = {
   Active: {
@@ -115,7 +120,8 @@ export default function UsersPage() {
     setDetailsDialogOpen(true);
 
     try {
-      const report = await clientsService.getReport(client.id);
+      const reportRaw = await clientsService.getReport(client.id);
+      const report = (reportRaw && 'status' in reportRaw ? (reportRaw as { data?: ClientReport })?.data : reportRaw as ClientReport) ?? null;
       setClientReport(report);
     } catch (err) {
       console.error('Failed to load client report:', err);
@@ -385,12 +391,12 @@ export default function UsersPage() {
                   </div>
                 )}
                 <div className="pt-4 border-t">
-                  <Button asChild className="w-full">
-                    <Link href={`/admin/users/${selectedClient.id}`}>
+                  <Link href={`/admin/users/${selectedClient.id}`}>
+                    <Button className="w-full">
                       <ChevronRight className="h-4 w-4 mr-2" />
                       View Full Dashboard
-                    </Link>
-                  </Button>
+                    </Button>
+                  </Link>
                 </div>
               </div>
             )}

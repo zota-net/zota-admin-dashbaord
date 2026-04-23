@@ -46,7 +46,12 @@ import { StatsCard } from '@/components/admin/cards/stat-card';
 import { clientsService, purchasesService, reportsService } from '@/lib/api';
 import type { Client, VoucherSale, SalesReport } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
-import { toast } from 'sonner';
+
+const toast = {
+  success: (msg: string) => console.log(msg),
+  error: (msg: string) => console.error(msg),
+};
+
 import { cn } from '@/lib/utils';
 import { MoreHorizontal } from 'lucide-react';
 

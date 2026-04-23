@@ -165,9 +165,11 @@ function buildQuery(params?: ReportParams): string {
 export const reportsService = {
   getSalesReport: (clientId: string, params?: ReportParams) =>
     api.get<ApiResponse<{ sales: RawVoucherSale[]; summary: Record<string, unknown> }>>(`/wallet/reports/sales/${clientId}${buildQuery(params)}`).then((response) => {
-      const data = response.data ?? response;
-      const sales = Array.isArray(data.sales) ? data.sales.map(normalizeVoucherSale) : [];
-      const summary = (data.summary as Record<string, unknown>) ?? {};
+      const raw = response.data ?? response;
+      const data = ('data' in raw && raw.data) ? raw.data : raw as { sales: RawVoucherSale[]; summary: Record<string, unknown> };
+      const salesArray = 'sales' in data && Array.isArray(data.sales) ? data.sales : [];
+      const sales = salesArray.map(normalizeVoucherSale);
+      const summary = 'summary' in data ? (data.summary as Record<string, unknown>) ?? {} : {};
       const computedRevenue = sales.reduce((sum, sale) => sum + sale.amount, 0);
 
       return {

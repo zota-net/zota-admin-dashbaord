@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -13,6 +14,7 @@ import {
   Clock,
   Ban,
   RotateCcw,
+  MoreHorizontal,
 } from 'lucide-react';
 import {
   Table,
@@ -44,28 +46,31 @@ import { PageTransition } from '@/components/common';
 import { clientsService, vouchersService } from '@/lib/api';
 import type { Client, Voucher } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
-import { toast } from 'sonner';
-import { MoreHorizontal } from 'lucide-react';
 
-const statusConfig = {
+const toast = {
+  success: (msg: string) => console.log(msg),
+  error: (msg: string) => console.error(msg),
+};
+
+const statusConfig: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   active: {
     label: 'Active',
-    color: 'bg-green-500/10 text-green-500 border-green-500/20',
+    color: 'bg-green-500/10 text-green-500',
     icon: CheckCircle,
   },
   used: {
     label: 'Used',
-    color: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+    color: 'bg-blue-500/10 text-blue-500',
     icon: Clock,
   },
   expired: {
     label: 'Expired',
-    color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+    color: 'bg-yellow-500/10 text-yellow-500',
     icon: Ban,
   },
   revoked: {
     label: 'Revoked',
-    color: 'bg-red-500/10 text-red-500 border-red-500/20',
+    color: 'bg-red-500/10 text-red-500',
     icon: XCircle,
   },
 };

@@ -114,11 +114,12 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <kbd className="px-2 py-1 rounded bg-muted">K</kbd>
             <span>to search</span>
           </div>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/admin/users">
-              View all clients
-            </Link>
-          </Button>
+          <Link
+            href="/admin/users"
+            className="text-sm text-muted-foreground hover:text-primary"
+          >
+            View all clients
+          </Link>
         </div>
       </DialogContent>
     </Dialog>

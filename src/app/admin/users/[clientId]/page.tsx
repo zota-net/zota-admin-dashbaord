@@ -36,7 +36,11 @@ import { StatsCard } from '@/components/admin/cards/stat-card';
 import { clientsService, reportsService, walletsService, purchasesService, vouchersService } from '@/lib/api';
 import type { Client, ClientReport, SalesReport, VoucherSale, Voucher } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
-import { toast } from 'sonner';
+
+const toast = {
+  success: (msg: string) => console.log(msg),
+  error: (msg: string) => console.error(msg),
+};
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -70,7 +74,12 @@ export default function ClientDetailPage() {
         }
 
         if (reportData.status === 'fulfilled' && reportData.value) {
-          setReport(reportData.value);
+          const report = reportData.value as ClientReport;
+          if ('status' in report) {
+            setReport((reportData.value as { data?: ClientReport })?.data ?? null);
+          } else {
+            setReport(reportData.value as ClientReport);
+          }
         }
 
         if (salesData.status === 'fulfilled' && salesData.value) {
@@ -149,12 +158,12 @@ export default function ClientDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
         <p className="text-lg font-medium text-red-500">{error || 'Client not found'}</p>
-        <Button asChild className="mt-4">
-          <Link href="/admin/users">
+        <Link href="/admin/users">
+          <Button className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Users
-          </Link>
-        </Button>
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -200,16 +209,16 @@ export default function ClientDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" asChild>
-                <Link href={`/admin/users/${client.id}/payments`}>
+              <Link href={`/admin/users/${client.id}/payments`}>
+                <Button variant="outline">
                   View Payments
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href={`/admin/users/${client.id}/vouchers`}>
+                </Button>
+              </Link>
+              <Link href={`/admin/users/${client.id}/vouchers`}>
+                <Button variant="outline">
                   View Vouchers
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             </div>
           </div>
         </motion.div>
@@ -343,11 +352,11 @@ export default function ClientDetailPage() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold">Recent Vouchers</CardTitle>
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/admin/users/${client.id}/vouchers`}>
+              <Link href={`/admin/users/${client.id}/vouchers`}>
+                <Button variant="outline" size="sm">
                   View All
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent>

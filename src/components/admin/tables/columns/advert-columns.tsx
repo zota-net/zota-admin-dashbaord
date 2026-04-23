@@ -4,12 +4,13 @@ import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 
 type Advert = {
-  id?: string | number;
-  title?: string;
-  owner?: string;
-  impressions?: number;
-  status?: string;
-  createdAt?: string;
+  id: string;
+  title: string;
+  advertiser: string;
+  status: string;
+  createdDate: string;
+  views: number;
+  clicks: number;
 };
 
 export const advertColumns: Array<{
@@ -19,17 +20,14 @@ export const advertColumns: Array<{
   width?: string;
 }> = [
   { header: 'Title', accessor: 'title' },
-  { header: 'Owner', accessor: 'owner' },
-  { header: 'Impressions', accessor: 'impressions' },
-  {
-    header: 'Status',
-    render: (row: Advert) => (
-      <Badge variant={row.status === 'Active' ? 'default' : 'secondary'}>
-        {row.status}
-      </Badge>
-    ),
-  },
-  { header: 'Created', accessor: 'createdAt' },
+  { header: 'Advertiser', accessor: 'advertiser' },
+  { header: 'Status', accessor: 'status', render: (row: Advert) => (
+    <Badge variant={row.status === 'Active' ? 'default' : 'secondary'}>
+      {row.status}
+    </Badge>
+  )},
+  { header: 'Views', accessor: 'views' },
+  { header: 'Clicks', accessor: 'clicks' },
 ];
 
 export type { Advert };

@@ -91,10 +91,12 @@ const adminNavItems: NavItem[] = [
 function NavLink({
   item,
   isActive,
+  pathname,
   onClick,
 }: {
   item: NavItem;
   isActive: boolean;
+  pathname: string;
   onClick?: () => void;
 }) {
   const Icon = item.icon;
@@ -219,6 +221,7 @@ export function AdminSidebar() {
               key={item.href}
               item={item}
               isActive={isActive(item.href)}
+              pathname={pathname}
             />
           ))}
         </nav>
@@ -253,6 +256,7 @@ export function AdminSidebar() {
                   key={item.href}
                   item={item}
                   isActive={isActive(item.href)}
+                  pathname={pathname}
                   onClick={() => setIsOpen(false)}
                 />
               ))}

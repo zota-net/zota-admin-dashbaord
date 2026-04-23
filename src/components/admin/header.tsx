@@ -48,7 +48,8 @@ export function AdminHeader() {
       settings: 'Settings',
     };
 
-    return titles[segments[segments.length - 1]] || 'Dashboard';
+    const lastSegment = segments[segments.length - 1];
+    return titles[lastSegment ?? ''] || 'Dashboard';
   };
 
   return (
