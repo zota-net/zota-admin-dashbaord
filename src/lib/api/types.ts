@@ -359,6 +359,12 @@ export interface Router {
   updatedAt: string;
 }
 
+export interface RouterConnection {
+  routerId: string;
+  connected: boolean;
+  connectedAt?: string;
+}
+
 export interface CreateRouterRequest {
   name: string;
   ipAddress: string;

@@ -20,6 +20,10 @@ import {
   Home,
   ChevronDown,
   Building,
+  DollarSign,
+  Headphones,
+  Video,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,6 +40,11 @@ const adminNavItems: NavItem[] = [
     label: 'Dashboard',
     href: '/admin',
     icon: Home,
+  },
+  {
+    label: 'Revenue',
+    href: '/admin/revenue',
+    icon: DollarSign,
   },
   {
     label: 'Users',
@@ -65,6 +74,16 @@ const adminNavItems: NavItem[] = [
     label: 'Devices',
     href: '/admin/devices',
     icon: BarChart3,
+  },
+  {
+    label: 'Support Tickets',
+    href: '/admin/support',
+    icon: Headphones,
+  },
+  {
+    label: 'Self-Help',
+    href: '/admin/help',
+    icon: Video,
   },
   {
     label: 'Adverts',

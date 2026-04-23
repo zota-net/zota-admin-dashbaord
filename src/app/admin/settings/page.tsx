@@ -1,28 +1,111 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lock, Bell, Users, Shield } from 'lucide-react';
+import {
+  Lock,
+  Bell,
+  Users,
+  Shield,
+  User,
+  Mail,
+  KeyRound,
+  Plus,
+  Trash2,
+  Edit,
+} from 'lucide-react';
+
+interface Admin {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
 
 export default function SettingsPage() {
+  const [admins, setAdmins] = useState<Admin[]>([
+    { id: '1', name: 'Super Admin', email: 'admin@zota.com', role: 'SuperAdmin', createdAt: '2024-01-01' },
+    { id: '2', name: 'Support Agent', email: 'support@zota.com', role: 'Admin', createdAt: '2024-01-15' },
+  ]);
+
   return (
     <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground mt-2">
-          Configure system settings, permissions, and preferences
+          Manage your profile, admin accounts, and system preferences
         </p>
       </div>
 
-      <Tabs defaultValue="security" className="w-full">
+      <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          <TabsTrigger value="admins">Admins</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
         </TabsList>
 
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Admin Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="fullname">Full Name</Label>
+                  <Input id="fullname" defaultValue="Super Admin" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" defaultValue="admin@zota.com" />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button>Save Changes</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5" />
+                Change Password
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input id="currentPassword" type="password" />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input id="newPassword" type="password" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input id="confirmPassword" type="password" />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button>Update Password</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
         <TabsContent value="security" className="space-y-6">
           <Card>
             <CardHeader>
@@ -57,60 +140,56 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
+        {/* Admins Tab */}
+        <TabsContent value="admins" className="space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
-                Notification Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Email Notifications</h3>
-                <p className="text-sm text-muted-foreground">
-                  Configure email alerts and notification preferences
-                </p>
-                <Button variant="outline">Configure Email</Button>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold">Alert Thresholds</h3>
-                <p className="text-sm text-muted-foreground">
-                  Set system alert thresholds and triggers
-                </p>
-                <Button variant="outline">Set Thresholds</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="permissions" className="space-y-6">
-          <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Role & Permission Management
+                Admin Users
               </CardTitle>
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Admin
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Admin Roles</h3>
-                <p className="text-sm text-muted-foreground">
-                  Create and manage admin roles with specific permissions
-                </p>
-                <Button variant="outline">Manage Roles</Button>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold">Admin Users</h3>
-                <p className="text-sm text-muted-foreground">
-                  Add, remove, or modify admin user accounts
-                </p>
-                <Button variant="outline">Manage Admin Users</Button>
+            <CardContent>
+              <div className="rounded-lg border">
+                <div className="grid grid-cols-4 gap-4 p-3 text-sm font-medium text-muted-foreground bg-muted/50">
+                  <div>Name</div>
+                  <div>Email</div>
+                  <div>Role</div>
+                  <div>Actions</div>
+                </div>
+                {admins.map((admin) => (
+                  <div key={admin.id} className="grid grid-cols-4 gap-4 p-3 text-sm border-t items-center">
+                    <div className="font-medium">{admin.name}</div>
+                    <div className="text-muted-foreground">{admin.email}</div>
+                    <div>
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        admin.role === 'SuperAdmin'
+                          ? 'bg-purple-500/10 text-purple-500'
+                          : 'bg-blue-500/10 text-blue-500'
+                      }`}>
+                        {admin.role}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* System Tab */}
         <TabsContent value="system" className="space-y-6">
           <Card>
             <CardHeader>
