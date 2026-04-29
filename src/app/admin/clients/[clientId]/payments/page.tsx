@@ -174,11 +174,11 @@ export default function ClientPaymentsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Link href="/admin/users" className="hover:text-primary transition-colors">
+            <Link href="/admin/clients" className="hover:text-primary transition-colors">
               Users
             </Link>
             <ChevronRight className="h-4 w-4" />
-            <Link href={`/admin/users/${clientId}`} className="hover:text-primary transition-colors">
+            <Link href={`/admin/clients/${clientId}`} className="hover:text-primary transition-colors">
               {client?.businessName || 'Client'}
             </Link>
             <ChevronRight className="h-4 w-4" />

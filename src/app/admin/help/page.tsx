@@ -1,49 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Video,
-  Search,
-  Play,
-  Clock,
   Eye,
-  ThumbsUp,
-  ExternalLink,
+  Play,
   Plus,
-  Edit,
-  Trash2,
+  Search,
+  ThumbsUp,
+  Video,
 } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { format, parseISO } from 'date-fns';
+import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
-import { format, parseISO } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface HelpVideo {
   id: string;
   title: string;
   description: string;
   youtubeUrl: string;
-  thumbnail: string;
   category: string;
   duration: number;
   views: number;
@@ -51,21 +39,33 @@ interface HelpVideo {
   createdAt: string;
 }
 
+const getYoutubeId = (url: string) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2] && match[2].length === 11 ? match[2] : null;
+};
+
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
 export default function SelfHelpPage() {
   const [videos, setVideos] = useState<HelpVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<HelpVideo | null>(null);
 
   useEffect(() => {
-    const mockVideos: HelpVideo[] = [
+    setVideos([
       {
         id: 'VID-001',
-        title: 'Getting Started with Xetihub',
-        description: 'Learn how to set up your account and create your first vouchers',
+        title: 'Getting Started with Zota',
+        description: 'Account onboarding, first client setup, and voucher generation basics.',
         youtubeUrl: 'https://youtube.com/watch?v=example1',
-        thumbnail: '',
         category: 'Getting Started',
         duration: 300,
         views: 1250,
@@ -75,9 +75,8 @@ export default function SelfHelpPage() {
       {
         id: 'VID-002',
         title: 'Creating and Managing Vouchers',
-        description: 'Complete guide to creating, editing, and managing vouchers',
+        description: 'How operators create, review, and monitor voucher inventory.',
         youtubeUrl: 'https://youtube.com/watch?v=example2',
-        thumbnail: '',
         category: 'Vouchers',
         duration: 480,
         views: 892,
@@ -87,9 +86,8 @@ export default function SelfHelpPage() {
       {
         id: 'VID-003',
         title: 'Connecting Your MikroTik Router',
-        description: 'Step-by-step guide to connecting your router',
+        description: 'Device onboarding flow and what to verify when a router is linked.',
         youtubeUrl: 'https://youtube.com/watch?v=example3',
-        thumbnail: '',
         category: 'Devices',
         duration: 720,
         views: 654,
@@ -99,236 +97,290 @@ export default function SelfHelpPage() {
       {
         id: 'VID-004',
         title: 'Setting Up Packages',
-        description: 'How to create and configure internet packages',
+        description: 'A practical walkthrough for package configuration and pricing strategy.',
         youtubeUrl: 'https://youtube.com/watch?v=example4',
-        thumbnail: '',
         category: 'Packages',
         duration: 360,
         views: 423,
         likes: 34,
         createdAt: '2024-01-15T11:00:00Z',
       },
-      {
-        id: 'VID-005',
-        title: 'Understanding Reports',
-        description: 'How to read and export sales reports',
-        youtubeUrl: 'https://youtube.com/watch?v=example5',
-        thumbnail: '',
-        category: 'Reports',
-        duration: 420,
-        views: 312,
-        likes: 28,
-        createdAt: '2024-01-16T15:00:00Z',
-      },
-    ];
-
-    setVideos(mockVideos);
+    ]);
     setIsLoading(false);
   }, []);
 
-  const filteredVideos = videos.filter((video) => {
-    const matchesSearch =
-      searchQuery === '' ||
-      video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      video.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredVideos = useMemo(
+    () =>
+      videos.filter((video) => {
+        const matchesSearch =
+          searchQuery === '' ||
+          video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          video.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory = categoryFilter === 'all' || video.category === categoryFilter;
+        const matchesCategory = categoryFilter === 'all' || video.category === categoryFilter;
+        return matchesSearch && matchesCategory;
+      }),
+    [categoryFilter, searchQuery, videos]
+  );
 
-    return matchesSearch && matchesCategory;
-  });
-
-  const categories = [...new Set(videos.map((v) => v.category))];
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const categories = [...new Set(videos.map((video) => video.category))];
 
   return (
     <PageTransition>
-      <div className="space-y-6">
-        <motion.div
+      <div className="flex flex-col gap-6">
+        <motion.section
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+          className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-sm"
         >
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Self-Help Videos</h1>
-            <p className="text-muted-foreground">Educational videos for clients</p>
-          </div>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Video
-          </Button>
-        </motion.div>
+          <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.35fr_1fr] lg:px-8 lg:py-8">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border-0 bg-primary/10 text-primary">Knowledge base</Badge>
+                <Badge variant="outline">Client enablement</Badge>
+              </div>
+              <div className="max-w-3xl">
+                <h2 className="text-3xl font-semibold tracking-tight">Make support lighter by giving clients sharper self-service paths.</h2>
+                <p className="mt-3 text-base text-muted-foreground">
+                  Curate the tutorials, setup walkthroughs, and troubleshooting guides that reduce repetitive support load and improve onboarding quality.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button className="rounded-xl" onClick={() => setShowAddDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add new tutorial
+                </Button>
+              </div>
+            </div>
 
-        {/* Stats */}
+            <Card className="rounded-[24px] border-border/70 bg-secondary/40 shadow-none">
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+                  Library Health
+                </CardDescription>
+                <CardTitle className="text-xl">Current content reach</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <div className="rounded-2xl border bg-card px-4 py-3">
+                  <p className="text-sm font-medium">Most useful category</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Voucher tutorials are still the most frequently accessed.</p>
+                </div>
+                <div className="rounded-2xl border bg-card px-4 py-3">
+                  <p className="text-sm font-medium">Content gap</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Payments and support-room walkthroughs should be added next.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.section>
+
         <StaggerContainer className="grid gap-4 md:grid-cols-3">
           <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Videos</p>
-                    <p className="text-2xl font-bold">{videos.length}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Video className="h-5 w-5 text-blue-500" />
-                  </div>
+            <Card className="rounded-2xl">
+              <CardContent className="flex items-center justify-between p-5">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Total videos</p>
+                  <p className="mt-2 text-3xl font-semibold">{videos.length}</p>
+                </div>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+                  <Video className="h-5 w-5" />
                 </div>
               </CardContent>
             </Card>
           </StaggerItem>
           <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Views</p>
-                    <p className="text-2xl font-bold">
-                      {videos.reduce((sum, v) => sum + v.views, 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <Eye className="h-5 w-5 text-green-500" />
-                  </div>
+            <Card className="rounded-2xl">
+              <CardContent className="flex items-center justify-between p-5">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Total views</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {videos.reduce((sum, video) => sum + video.views, 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-600">
+                  <Eye className="h-5 w-5" />
                 </div>
               </CardContent>
             </Card>
           </StaggerItem>
           <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Likes</p>
-                    <p className="text-2xl font-bold">
-                      {videos.reduce((sum, v) => sum + v.likes, 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                    <ThumbsUp className="h-5 w-5 text-purple-500" />
-                  </div>
+            <Card className="rounded-2xl">
+              <CardContent className="flex items-center justify-between p-5">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Likes</p>
+                  <p className="mt-2 text-3xl font-semibold">
+                    {videos.reduce((sum, video) => sum + video.likes, 0).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex size-11 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-600">
+                  <ThumbsUp className="h-5 w-5" />
                 </div>
               </CardContent>
             </Card>
           </StaggerItem>
         </StaggerContainer>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Card className="rounded-[24px] border-border/70">
+          <CardHeader>
+            <CardTitle className="text-2xl">Help content library</CardTitle>
+            <CardDescription>
+              Search existing tutorials and open a video in place to review the end-user experience.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search videos..."
+                  placeholder="Search videos, workflows, or categories..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="h-11 pl-10"
                 />
               </div>
-              <select
-                className="h-10 w-[150px] rounded-md border border-input bg-background px-3 py-2"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            {isLoading ? (
+              <div className="flex items-center justify-center rounded-2xl border py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              </div>
+            ) : filteredVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border py-16 text-muted-foreground">
+                <Video className="mb-4 h-12 w-12 opacity-50" />
+                <p>No tutorials match the current filters.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filteredVideos.map((video) => (
+                  <StaggerItem key={video.id}>
+                    <Card className="h-full cursor-pointer overflow-hidden rounded-2xl transition-shadow hover:shadow-md" onClick={() => setSelectedVideo(video)}>
+                      <div className="group relative aspect-video overflow-hidden bg-secondary">
+                        {getYoutubeId(video.youtubeUrl) ? (
+                          <img
+                            src={`https://img.youtube.com/vi/${getYoutubeId(video.youtubeUrl)}/hqdefault.jpg`}
+                            alt={video.title}
+                            className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+                          />
+                        ) : null}
+                        <div className="absolute inset-0 bg-slate-950/20" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="flex size-14 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-lg">
+                            <Play className="ml-1 h-6 w-6" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-3 right-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs text-white">
+                          {formatDuration(video.duration)}
+                        </div>
+                      </div>
+                      <CardContent className="flex h-full flex-col gap-4 p-5">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="text-base font-semibold leading-6">{video.title}</h3>
+                            <Badge variant="outline">{video.category}</Badge>
+                          </div>
+                          <p className="text-sm leading-6 text-muted-foreground">{video.description}</p>
+                        </div>
+                        <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5" />
+                            {video.views.toLocaleString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                            {video.likes}
+                          </span>
+                          <span>{format(parseISO(video.createdAt), 'MMM d')}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </StaggerItem>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Videos Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredVideos.map((video) => (
-            <StaggerItem key={video.id}>
-              <Card className="overflow-hidden">
-                <div className="aspect-video bg-muted relative flex items-center justify-center">
-                  <Play className="h-12 w-12 text-muted-foreground opacity-50" />
-                  <div className="absolute bottom-2 right-2 bg-black/70 px-2 py-1 rounded text-xs text-white">
-                    {formatDuration(video.duration)}
-                  </div>
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{video.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {video.description}
-                      </p>
-                    </div>
-                    <Button variant="ghost" size="icon">
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" />
-                      {video.views.toLocaleString()}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <ThumbsUp className="h-3 w-3" />
-                      {video.likes}
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {video.category}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </StaggerItem>
-          ))}
-        </div>
-
-        {filteredVideos.length === 0 && !isLoading && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Video className="h-12 w-12 text-muted-foreground opacity-50 mb-4" />
-              <p className="text-muted-foreground">No videos found</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Add Video Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-xl">
             <DialogHeader>
-              <DialogTitle>Add New Video</DialogTitle>
+              <DialogTitle>Add New Tutorial</DialogTitle>
               <DialogDescription>
-                Add a YouTube video to the self-help library
+                Add a new self-help video entry for operators and clients.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
                 <Label htmlFor="title">Title</Label>
-                <Input id="title" placeholder="Video title" className="mt-1" />
+                <Input id="title" placeholder="Video title" />
               </div>
-              <div>
+              <div className="grid gap-2">
                 <Label htmlFor="description">Description</Label>
-                <Input id="description" placeholder="Short description" className="mt-1" />
+                <Input id="description" placeholder="Short description" />
               </div>
-              <div>
+              <div className="grid gap-2">
                 <Label htmlFor="youtubeUrl">YouTube URL</Label>
-                <Input id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." className="mt-1" />
+                <Input id="youtubeUrl" placeholder="https://youtube.com/watch?v=..." />
               </div>
-              <div>
+              <div className="grid gap-2">
                 <Label htmlFor="category">Category</Label>
-                <Input id="category" placeholder="e.g., Getting Started" className="mt-1" />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => setShowAddDialog(false)}>Add Video</Button>
+                <Input id="category" placeholder="Getting Started" />
               </div>
             </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setShowAddDialog(false)}>Add Tutorial</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!selectedVideo} onOpenChange={(open) => !open && setSelectedVideo(null)}>
+          <DialogContent className="overflow-hidden p-0 sm:max-w-4xl">
+            {selectedVideo ? (
+              <>
+                <div className="aspect-video bg-slate-950">
+                  {getYoutubeId(selectedVideo.youtubeUrl) ? (
+                    <iframe
+                      width="100%"
+                      height="100%"
+                      src={`https://www.youtube.com/embed/${getYoutubeId(selectedVideo.youtubeUrl)}?autoplay=1`}
+                      title={selectedVideo.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-white/70">
+                      Invalid video URL
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3 p-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge>{selectedVideo.category}</Badge>
+                    <Badge variant="outline">{formatDuration(selectedVideo.duration)}</Badge>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold">{selectedVideo.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{selectedVideo.description}</p>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </DialogContent>
         </Dialog>
       </div>

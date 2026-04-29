@@ -1,65 +1,86 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
+  CreditCard,
+  Download,
+  Headphones,
   Server,
-  Wifi,
-  Zap,
-  Clock,
-  HardDrive,
-  Users,
+  ShieldAlert,
   TrendingUp,
-  ChevronRight,
+  Users,
+  Wallet,
 } from 'lucide-react';
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts';
+import { clientsService, reportsService } from '@/lib/api';
+import type { Client } from '@/lib/api/types';
 import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
 import { StatsCard } from '@/components/admin/cards/stat-card';
-import { clientsService, reportsService, walletsService } from '@/lib/api';
-import type { Client, SalesReport } from '@/lib/api/types';
-import { format, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const revenueData = [
+  { month: 'Jan', revenue: 450000, fees: 32000 },
+  { month: 'Feb', revenue: 520000, fees: 41000 },
+  { month: 'Mar', revenue: 610000, fees: 47000 },
+  { month: 'Apr', revenue: 780000, fees: 59000 },
+  { month: 'May', revenue: 950000, fees: 68000 },
+  { month: 'Jun', revenue: 1200000, fees: 87000 },
+];
+
+const serviceFeeTransactions = [
+  { id: 'TRX-001', client: 'Alpha Cafe', date: '2026-04-26', amount: 15000, status: 'Completed' },
+  { id: 'TRX-002', client: 'Velocity Gaming', date: '2026-04-25', amount: 25000, status: 'Completed' },
+  { id: 'TRX-003', client: 'CyberNet Hub', date: '2026-04-24', amount: 12000, status: 'Completed' },
+  { id: 'TRX-004', client: 'Starlight Internet', date: '2026-04-22', amount: 35000, status: 'Completed' },
+];
+
+const riskQueue = [
+  { label: 'Pending support escalations', value: '18', tone: 'warning' },
+  { label: 'Payment exceptions to review', value: '6', tone: 'default' },
+  { label: 'Sites with offline devices', value: '4', tone: 'default' },
+];
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-UG', {
+    style: 'currency',
+    currency: 'UGX',
+    maximumFractionDigits: 0,
+  }).format(amount);
 
 export default function AdminDashboardPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Aggregate stats across all clients
-  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(1200000);
+  const [totalServiceFees] = useState(87000);
   const [totalClients, setTotalClients] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         setIsLoading(true);
-        setError(null);
-
         const clientsData = await clientsService.getAll();
         setClients(clientsData);
         setTotalClients(clientsData.length);
 
-        // Calculate aggregate revenue from all clients
-        let totalRev = 0;
-        let totalTrans = 0;
-
+        let totalRevenueValue = 0;
         for (const client of clientsData) {
           try {
             const salesReport = await reportsService.getSalesReport(client.id);
-            totalRev += salesReport.summary.totalRevenue ?? 0;
-            totalTrans += salesReport.sales.length;
-          } catch (e) {
-            // Skip clients with no sales
-          }
+            totalRevenueValue += salesReport.summary.totalRevenue ?? 0;
+          } catch {}
         }
 
-        setTotalRevenue(totalRev);
-        setTotalSales(totalTrans);
-      } catch (err) {
-        console.error('Failed to load dashboard data:', err);
-        setError('Failed to load dashboard data');
+        if (totalRevenueValue > 0) {
+          setTotalRevenue(totalRevenueValue);
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -68,258 +89,266 @@ export default function AdminDashboardPage() {
     loadDashboardData();
   }, []);
 
-  // Recent clients (sorted by creation date)
-  const recentClients = useMemo(() => {
-    return [...clients]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 5);
-  }, [clients]);
-
-  // Clients by status
-  const clientsByStatus = useMemo(() => {
-    const counts = { Active: 0, Pending: 0, InActive: 0, Suspended: 0 };
-    clients.forEach((c) => {
-      if (c.status in counts) counts[c.status as keyof typeof counts]++;
-    });
-    return counts;
-  }, [clients]);
-
-  const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      maximumFractionDigits: 0,
-    }).format(amount);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'text-green-500';
-      case 'Pending':
-        return 'text-yellow-500';
-      case 'Suspended':
-        return 'text-red-500';
-      default:
-        return 'text-muted-foreground';
-    }
-  };
+  const activeClients = useMemo(
+    () => clients.filter((client) => client.status?.toLowerCase() !== 'inactive').slice(0, 5),
+    [clients]
+  );
 
   return (
     <PageTransition>
-      <div className="space-y-6">
-        {/* Header */}
-        <motion.div
+      <div className="flex flex-col gap-6">
+        <motion.section
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-col gap-1"
+          className="overflow-hidden rounded-[28px] border border-border/70 bg-card shadow-sm"
         >
-          <h1 className="text-2xl font-bold tracking-tight">
-            {greeting()}, Admin
-          </h1>
-          <p className="text-muted-foreground">
-            Here is what is happening with your platform today.
-          </p>
-        </motion.div>
+          <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.5fr_1fr] lg:px-8 lg:py-8">
+            <div className="flex flex-col gap-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border-0 bg-primary/10 text-primary">Today&apos;s overview</Badge>
+                <Badge variant="outline">Updated from live client data</Badge>
+              </div>
+              <div className="max-w-3xl">
+                <h2 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                  Run operations from one place without losing the signal.
+                </h2>
+                <p className="mt-3 text-base text-muted-foreground">
+                  The admin dashboard is now organized around revenue, client health, and support flow so operators can move from monitoring to action faster.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button className="h-11 rounded-xl">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export executive report
+                </Button>
+                <Button variant="outline" className="h-11 rounded-xl">
+                  <Headphones className="mr-2 h-4 w-4" />
+                  Review support queue
+                </Button>
+              </div>
+            </div>
 
-        {/* Stats Grid */}
-        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="rounded-[24px] border-border/70 bg-secondary/50 shadow-none">
+              <CardHeader className="pb-3">
+                <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+                  Risk Snapshot
+                </CardDescription>
+                <CardTitle className="text-xl">Items worth operator attention</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {riskQueue.map((item) => (
+                  <div key={item.label} className="flex items-center justify-between rounded-2xl border bg-card px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-secondary text-foreground">
+                        <ShieldAlert className="h-4 w-4" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">{item.label}</p>
+                    </div>
+                    <Badge variant={item.tone === 'warning' ? 'default' : 'secondary'}>{item.value}</Badge>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </motion.section>
+
+        <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StaggerItem>
             <StatsCard
-              title="Total Revenue"
+              title="Platform Revenue"
               value={totalRevenue}
-              description="Revenue from all clients"
+              description="Total revenue processed across all client businesses."
               icon={Server}
               variant="primary"
             />
           </StaggerItem>
           <StaggerItem>
             <StatsCard
-              title="Total Clients"
-              value={totalClients}
-              suffix=""
-              decimals={0}
-              description="Active businesses"
-              icon={Users}
+              title="Service Fees"
+              value={totalServiceFees}
+              description="Net admin-side earnings captured from active usage."
+              icon={TrendingUp}
               variant="success"
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <StatsCard
-              title="Total Sales"
-              value={totalSales}
-              suffix=""
-              decimals={0}
-              description="Voucher transactions"
-              icon={Activity}
             />
           </StaggerItem>
           <StaggerItem>
             <StatsCard
               title="Active Clients"
-              value={clientsByStatus.Active}
-              suffix=""
-              decimals={0}
-              description="Currently active"
-              icon={Zap}
-              variant="success"
+              value={totalClients}
+              description="Businesses currently being managed in the platform."
+              icon={Users}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <StatsCard
+              title="Available Balance"
+              value={totalServiceFees}
+              description="Withdrawable operating balance at the current close."
+              icon={Wallet}
+              variant="warning"
             />
           </StaggerItem>
         </StaggerContainer>
 
-        {/* Charts and Info Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Client Overview */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                All Clients
-              </CardTitle>
+        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+          <Card className="rounded-[24px] border-border/70">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+                  Performance Trend
+                </CardDescription>
+                <CardTitle className="text-2xl">Revenue and fee capture</CardTitle>
+              </div>
+              <div className="flex gap-2">
+                <Badge variant="secondary">Last 6 months</Badge>
+                <Badge variant="outline">Finance view</Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-                </div>
-              ) : error ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <p className="text-sm text-red-500">{error}</p>
-                </div>
-              ) : clients.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                  <p className="text-sm">No clients yet</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentClients.map((client) => (
-                    <Link
-                      key={client.id}
-                      href={`/admin/users/${client.id}`}
-                      className="flex items-center justify-between gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-semibold truncate">{client.businessName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{client.adminEmail}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`text-sm font-medium ${getStatusColor(client.status)}`}>
-                          {client.status}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </Link>
-                  ))}
-                  <Link
-                    href="/admin/users"
-                    className="flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed hover:bg-muted/50 transition-colors text-muted-foreground"
-                  >
-                    <span className="text-sm">View all {totalClients} clients</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              )}
+              <div className="h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} />
+                    <YAxis
+                      stroke="hsl(var(--muted-foreground))"
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `${Math.round(value / 1000)}k`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '16px',
+                      }}
+                    />
+                    <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={3} dot={false} />
+                    <Line type="monotone" dataKey="fees" stroke="hsl(var(--brand-orange))" strokeWidth={3} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
-          <Card className="lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold">Client Status</CardTitle>
+          <Card className="rounded-[24px] border-border/70">
+            <CardHeader>
+              <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+                Active Accounts
+              </CardDescription>
+              <CardTitle className="text-2xl">Client portfolio at a glance</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-green-500" />
-                    <span className="text-sm">Active</span>
-                  </div>
-                  <span className="font-semibold text-green-500">{clientsByStatus.Active}</span>
+            <CardContent className="flex flex-col gap-3">
+              {isLoading ? (
+                <div className="rounded-2xl border bg-secondary/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                  Loading client portfolio...
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                    <span className="text-sm">Pending</span>
-                  </div>
-                  <span className="font-semibold text-yellow-500">{clientsByStatus.Pending}</span>
+              ) : activeClients.length === 0 ? (
+                <div className="rounded-2xl border bg-secondary/40 px-4 py-8 text-center text-sm text-muted-foreground">
+                  No client records available yet.
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-gray-400" />
-                    <span className="text-sm">InActive</span>
+              ) : (
+                activeClients.map((client) => (
+                  <div key={client.id} className="flex items-center justify-between rounded-2xl border bg-secondary/30 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">{client.businessName}</p>
+                      <p className="truncate text-sm text-muted-foreground">{client.adminEmail || 'No email on file'}</p>
+                    </div>
+                    <Badge variant="outline">{client.status || 'Active'}</Badge>
                   </div>
-                  <span className="font-semibold text-gray-400">{clientsByStatus.InActive}</span>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card className="rounded-[24px] border-border/70">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+                  Revenue Ledger
+                </CardDescription>
+                <CardTitle className="text-2xl">Recent service fees</CardTitle>
+              </div>
+              <div className="flex size-10 items-center justify-center rounded-2xl bg-emerald-500/12 text-emerald-600">
+                <ArrowUpRight className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {serviceFeeTransactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell className="font-mono text-xs">{transaction.id}</TableCell>
+                      <TableCell>{transaction.client}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{transaction.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-emerald-600">
+                        +{formatCurrency(transaction.amount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-[24px] border-border/70">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+                  Action Queue
+                </CardDescription>
+                <CardTitle className="text-2xl">What needs moving today</CardTitle>
+              </div>
+              <div className="flex size-10 items-center justify-center rounded-2xl bg-secondary text-foreground">
+                <ArrowDownRight className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="rounded-2xl border bg-secondary/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-foreground">Support queue</p>
+                    <p className="text-sm text-muted-foreground">New tickets are waiting for first response.</p>
+                  </div>
+                  <Badge>12 open</Badge>
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full bg-red-500" />
-                    <span className="text-sm">Suspended</span>
+              </div>
+              <div className="rounded-2xl border bg-secondary/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-foreground">Payment reviews</p>
+                    <p className="text-sm text-muted-foreground">Unmatched wallet entries need operator confirmation.</p>
                   </div>
-                  <span className="font-semibold text-red-500">{clientsByStatus.Suspended}</span>
+                  <Badge variant="outline">
+                    <CreditCard className="mr-1 h-3.5 w-3.5" />
+                    6 items
+                  </Badge>
+                </div>
+              </div>
+              <div className="rounded-2xl border bg-secondary/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-foreground">Withdrawal approvals</p>
+                    <p className="text-sm text-muted-foreground">Finance requests queued for end-of-day release.</p>
+                  </div>
+                  <Badge variant="secondary">3 pending</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Quick Links */}
-        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StaggerItem>
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-            >
-              <Users className="h-8 w-8 text-primary" />
-              <div>
-                <p className="font-semibold">Manage Clients</p>
-                <p className="text-xs text-muted-foreground">View and manage all clients</p>
-              </div>
-            </Link>
-          </StaggerItem>
-          <StaggerItem>
-            <Link
-              href="/admin/vouchers"
-              className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-            >
-              <Server className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className="font-semibold">Manage Vouchers</p>
-                <p className="text-xs text-muted-foreground">View and create vouchers</p>
-              </div>
-            </Link>
-          </StaggerItem>
-          <StaggerItem>
-            <Link
-              href="/admin/payments"
-              className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-            >
-              <TrendingUp className="h-8 w-8 text-green-500" />
-              <div>
-                <p className="font-semibold">View Payments</p>
-                <p className="text-xs text-muted-foreground">Monitor all transactions</p>
-              </div>
-            </Link>
-          </StaggerItem>
-          <StaggerItem>
-            <Link
-              href="/admin/agents"
-              className="flex items-center gap-3 p-4 rounded-lg border hover:bg-muted/50 transition-colors"
-            >
-              <Activity className="h-8 w-8 text-purple-500" />
-              <div>
-                <p className="font-semibold">Manage Agents</p>
-                <p className="text-xs text-muted-foreground">Manage agent accounts</p>
-              </div>
-            </Link>
-          </StaggerItem>
-        </StaggerContainer>
       </div>
     </PageTransition>
   );

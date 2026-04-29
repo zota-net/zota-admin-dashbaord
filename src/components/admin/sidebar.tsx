@@ -4,285 +4,196 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Users,
-  Activity,
-  Package,
-  Ticket,
-  CreditCard,
-  Image as ImageIcon,
   AlertCircle,
-  FileText,
-  Settings,
+  ArrowUpRight,
+  Building2,
   ChevronRight,
-  Menu,
-  X,
-  BarChart3,
-  Home,
-  ChevronDown,
-  Building,
-  DollarSign,
+  CreditCard,
+  FileText,
   Headphones,
+  Home,
+  Image as ImageIcon,
+  Menu,
+  Settings,
+  Users,
   Video,
-  Wallet,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: NavItem[];
+  badge?: string;
 }
 
-const adminNavItems: NavItem[] = [
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
   {
-    label: 'Dashboard',
-    href: '/admin',
-    icon: Home,
-  },
-  {
-    label: 'Revenue',
-    href: '/admin/revenue',
-    icon: DollarSign,
-  },
-  {
-    label: 'Users',
-    href: '/admin/users',
-    icon: Users,
-    children: [
-      { label: 'All Clients', href: '/admin/users', icon: Users },
-      { label: 'Agents', href: '/admin/agents', icon: Activity },
+    title: 'Overview',
+    items: [
+      { label: 'Executive Dashboard', href: '/admin', icon: Home },
+      { label: 'Revenue Control', href: '/admin/revenue', icon: ArrowUpRight },
+      { label: 'Clients', href: '/admin/clients', icon: Users },
     ],
   },
   {
-    label: 'Vouchers',
-    href: '/admin/vouchers',
-    icon: Ticket,
+    title: 'Support',
+    items: [
+      { label: 'Support & Tickets', href: '/admin/support', icon: Headphones, badge: 'Live' },
+      { label: 'Self-Help Library', href: '/admin/help', icon: Video },
+    ],
   },
   {
-    label: 'Payments',
-    href: '/admin/payments',
-    icon: CreditCard,
-  },
-  {
-    label: 'Packages',
-    href: '/admin/packages',
-    icon: Package,
-  },
-  {
-    label: 'Devices',
-    href: '/admin/devices',
-    icon: BarChart3,
-  },
-  {
-    label: 'Support Tickets',
-    href: '/admin/support',
-    icon: Headphones,
-  },
-  {
-    label: 'Self-Help',
-    href: '/admin/help',
-    icon: Video,
-  },
-  {
-    label: 'Adverts',
-    href: '/admin/adverts',
-    icon: ImageIcon,
-  },
-  {
-    label: 'Alerts',
-    href: '/admin/alerts',
-    icon: AlertCircle,
-  },
-  {
-    label: 'Logs',
-    href: '/admin/logs',
-    icon: FileText,
-  },
-  {
-    label: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
+    title: 'Operations',
+    items: [
+      { label: 'Payments', href: '/admin/payments', icon: CreditCard },
+      { label: 'Adverts Control', href: '/admin/adverts', icon: ImageIcon },
+      { label: 'Alerts', href: '/admin/alerts', icon: AlertCircle },
+      { label: 'Logs', href: '/admin/logs', icon: FileText },
+      { label: 'Settings', href: '/admin/settings', icon: Settings },
+    ],
   },
 ];
 
-function NavLink({
-  item,
-  isActive,
+function SidebarContent({
   pathname,
-  onClick,
+  onNavigate,
 }: {
-  item: NavItem;
-  isActive: boolean;
   pathname: string;
-  onClick?: () => void;
+  onNavigate?: () => void;
 }) {
-  const Icon = item.icon;
-  const hasChildren = item.children && item.children.length > 0;
-  const [expanded, setExpanded] = useState(false);
+  const isActive = (href: string) => {
+    if (href === '/admin') {
+      return pathname === '/admin' || pathname === '/admin/dashboard';
+    }
 
-  if (hasChildren) {
-    return (
-      <div className="space-y-1">
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className={cn(
-            'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm w-full text-left',
-            isActive
-              ? 'bg-primary text-primary-foreground'
-              : 'hover:bg-muted text-foreground'
-          )}
-        >
-          <Icon className="w-5 h-5 flex-shrink-0" />
-          <span className="flex-1">{item.label}</span>
-          <ChevronDown
-            className={cn(
-              'w-4 h-4 transition-transform',
-              expanded && 'rotate-180'
-            )}
-          />
-        </button>
-        {expanded && (
-          <div className="ml-4 space-y-1">
-            {item.children?.map((child) => {
-              const ChildIcon = child.icon;
-              const childActive = pathname === child.href;
-              return (
-                <Link
-                  key={child.href}
-                  href={child.href}
-                  onClick={onClick}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm',
-                    childActive
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'hover:bg-muted text-foreground'
-                  )}
-                >
-                  <ChildIcon className="w-4 h-4 flex-shrink-0" />
-                  <span>{child.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
+    return pathname.startsWith(href);
+  };
 
   return (
-    <Link
-      href={item.href}
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm',
-        isActive
-          ? 'bg-primary text-primary-foreground'
-          : 'hover:bg-muted text-foreground'
-      )}
-    >
-      <Icon className="w-5 h-5 flex-shrink-0" />
-      <span className="flex-1">{item.label}</span>
-      {isActive && <ChevronRight className="w-4 h-4" />}
-    </Link>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-[hsl(var(--sidebar-border))] px-5 py-5">
+        <Link href="/admin" onClick={onNavigate} className="flex items-center gap-3">
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[hsl(var(--sidebar-foreground))]">
+              Zota Admin
+            </p>
+            <p className="truncate text-xs text-slate-400">
+              Operations control center
+            </p>
+          </div>
+        </Link>
+      </div>
+
+      <div className="px-4 py-4">
+        <div className="rounded-2xl border border-[hsl(var(--sidebar-border))] bg-white/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                Workspace
+              </p>
+              <p className="mt-1 text-sm font-medium text-[hsl(var(--sidebar-foreground))]">
+                Kampala Region
+              </p>
+            </div>
+            <Badge className="border-0 bg-emerald-500/15 text-emerald-300">Healthy</Badge>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        <div className="flex flex-col gap-5">
+          {navGroups.map((group) => (
+            <div key={group.title} className="flex flex-col gap-2">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                {group.title}
+              </p>
+              <div className="flex flex-col gap-1">
+                {group.items.map((item) => {
+                  const active = isActive(item.href);
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={cn(
+                        'group flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all',
+                        active
+                          ? 'bg-white text-slate-950 shadow-sm'
+                          : 'text-slate-300 hover:bg-white/8 hover:text-white'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'flex size-9 items-center justify-center rounded-lg transition-colors',
+                          active ? 'bg-slate-100 text-slate-900' : 'bg-white/5 text-slate-300'
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="truncate font-medium">{item.label}</span>
+                        {item.badge ? (
+                          <Badge className="border-0 bg-blue-500/15 text-blue-300">
+                            {item.badge}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {active ? (
+                        <ChevronRight className="h-4 w-4 text-slate-500" />
+                      ) : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </nav>
+    </div>
   );
 }
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(true);
-
-  const isActive = (href: string) => {
-    if (href === '/admin') {
-      return pathname === '/admin' || pathname === '/admin/dashboard';
-    }
-    return pathname.startsWith(href);
-  };
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <div
-        className={cn(
-          'hidden lg:flex flex-col bg-card border-r border-border transition-all duration-300 fixed h-screen',
-          isOpen ? 'w-64' : 'w-20'
-        )}
-      >
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <Link href="/admin" className="flex items-center gap-2">
-            {isOpen && (
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Building className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-bold">ZOTA</span>
-              </div>
-            )}
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsOpen(!isOpen)}
-            className="hidden lg:flex"
-          >
-            {isOpen ? (
-              <X className="w-4 h-4" />
-            ) : (
-              <Menu className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] lg:block">
+        <SidebarContent pathname={pathname} />
+      </aside>
 
-        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-          {adminNavItems.map((item) => (
-            <NavLink
-              key={item.href}
-              item={item}
-              isActive={isActive(item.href)}
-              pathname={pathname}
-            />
-          ))}
-        </nav>
-      </div>
-
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-5 right-5 z-40 lg:hidden">
         <Button
-          onClick={() => setIsOpen(!isOpen)}
-          className="rounded-full shadow-lg"
           size="icon"
+          className="size-12 rounded-full shadow-lg"
+          onClick={() => setMobileOpen((current) => !current)}
         >
-          {isOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
       </div>
 
-      {/* Mobile Sidebar */}
-      {isOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-black/50">
-          <div className="bg-card w-72 h-full shadow-lg overflow-y-auto">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Building className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-bold">ZOTA Admin</span>
-              </div>
-            </div>
-            <nav className="p-2 space-y-1">
-              {adminNavItems.map((item) => (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  isActive={isActive(item.href)}
-                  pathname={pathname}
-                  onClick={() => setIsOpen(false)}
-                />
-              ))}
-            </nav>
-          </div>
+      {mobileOpen ? (
+        <div className="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm lg:hidden">
+          <aside className="h-full w-80 max-w-[88vw] border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] shadow-2xl">
+            <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} />
+          </aside>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface StatsCardProps {
   title: string;
@@ -16,6 +16,25 @@ interface StatsCardProps {
   className?: string;
 }
 
+const toneStyles = {
+  default: {
+    iconWrap: 'bg-secondary text-foreground',
+    value: 'text-foreground',
+  },
+  primary: {
+    iconWrap: 'bg-primary/10 text-primary',
+    value: 'text-primary',
+  },
+  success: {
+    iconWrap: 'bg-emerald-500/12 text-emerald-600',
+    value: 'text-emerald-600',
+  },
+  warning: {
+    iconWrap: 'bg-amber-500/12 text-amber-600',
+    value: 'text-amber-600',
+  },
+};
+
 export function StatsCard({
   title,
   value,
@@ -27,40 +46,37 @@ export function StatsCard({
   variant = 'default',
   className,
 }: StatsCardProps) {
-  const variantStyles = {
-    default: '',
-    primary: 'text-primary',
-    success: 'text-green-500',
-    warning: 'text-yellow-500',
-  };
+  const formatValue = (currentValue: number) => {
+    if (currentValue >= 1000000) {
+      return `${prefix}${(currentValue / 1000000).toFixed(1)}M${suffix}`;
+    }
 
-  const formatValue = (val: number) => {
-    if (val >= 1000000) {
-      return `${prefix}${(val / 1000000).toFixed(1)}M${suffix}`;
+    if (currentValue >= 1000) {
+      return `${prefix}${(currentValue / 1000).toFixed(1)}k${suffix}`;
     }
-    if (val >= 1000) {
-      return `${prefix}${(val / 1000).toFixed(1)}k${suffix}`;
-    }
-    return `${prefix}${val.toFixed(decimals)}${suffix}`;
+
+    return `${prefix}${currentValue.toFixed(decimals)}${suffix}`;
   };
 
   return (
-    <Card className={cn('overflow-hidden', className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Icon className={cn('h-4 w-4', variantStyles[variant])} />
+    <Card className={cn('h-full rounded-2xl border-border/80 shadow-sm', className)}>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <CardDescription className="text-xs font-medium uppercase tracking-[0.18em]">
+            {title}
+          </CardDescription>
+          <CardTitle className={cn('text-3xl font-semibold tracking-tight', toneStyles[variant].value)}>
+            {formatValue(value)}
+          </CardTitle>
+        </div>
+        <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-2xl', toneStyles[variant].iconWrap)}>
+          <Icon className="h-5 w-5" />
         </div>
       </CardHeader>
-      <CardContent>
-        <div className={cn('text-2xl font-bold', variantStyles[variant])}>
-          {formatValue(value)}
-        </div>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        )}
+      <CardContent className="pt-0">
+        <p className="text-sm text-muted-foreground">
+          {description || 'No additional context provided.'}
+        </p>
       </CardContent>
     </Card>
   );

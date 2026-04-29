@@ -26,18 +26,19 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const retuendata= await response.json()
+      const data=retuendata.data
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
-
+     
       login({
         token: data.token,
         admin: {
@@ -51,6 +52,7 @@ export default function AdminLoginPage() {
       router.push('/admin');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      console.log('Login error:', err);
     } finally {
       setIsLoading(false);
     }
