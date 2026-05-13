@@ -24,6 +24,7 @@ import {
   Headphones,
   Video,
   Wallet,
+  Terminal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -74,6 +75,11 @@ const adminNavItems: NavItem[] = [
     label: 'Devices',
     href: '/admin/devices',
     icon: BarChart3,
+  },
+  {
+    label: 'Router Scripts',
+    href: '/admin/routers',
+    icon: Terminal,
   },
   {
     label: 'Support Tickets',

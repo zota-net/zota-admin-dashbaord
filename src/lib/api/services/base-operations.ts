@@ -12,6 +12,7 @@ import type {
   CreateAdvertRequest,
   BopDevice,
   ApiResponse,
+  SupportTicket,
 } from '../types';
 
 // Nginx proxies /bop/ → base-operations-service:3000
@@ -133,4 +134,25 @@ export const bopDevicesService = {
 
   getByMac: (macAddress: string) =>
     api.get<ApiResponse<BopDevice>>(`/bop/devices/mac/${macAddress}`).then((response) => response.data ?? response),
+};
+// ─── Support Tickets ──────────────────────────────────────────────────────────
+
+export const supportService = {
+  getAll: (params?: { page?: number; limit?: number; status?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.status) qs.set('status', params.status);
+    const str = qs.toString();
+    return api.get<any>(`/bop/support/tickets${str ? `?${str}` : ''}`).then((r) => r);
+  },
+
+  getById: (id: string | number) =>
+    api.get<ApiResponse<SupportTicket>>(`/bop/support/tickets/${id}`).then((r) => r.data!),
+
+  addMessage: (id: string | number, content: string, senderName: string, sender: 'user' | 'agent' = 'agent') =>
+    api.post<ApiResponse<SupportTicket>>(`/bop/support/tickets/${id}/messages`, { content, senderName, sender }).then((r) => r.data!),
+
+  updateStatus: (id: string | number, status: string, assignedTo?: string) =>
+    api.put<ApiResponse<SupportTicket>>(`/bop/support/tickets/${id}/status`, { status, assignedTo }).then((r) => r.data!),
 };

@@ -16,4 +16,10 @@ export const routersService = {
 
   disconnect: (routerId: string) =>
     api.post<ApiResponse>(`/mikrotik/routers/${routerId}/disconnect`),
+
+  runScript: (routerId: string, source: string, scriptName?: string) =>
+    api.post<ApiResponse<{ output?: string; success: boolean }>>(`/mikrotik/routers/${routerId}/scripts/run`, { source, scriptName }),
+
+  getAll: () =>
+    api.get<ApiResponse<import('../types').Router[]>>('/mikrotik/routers').then((r) => (r.data ?? r) as import('../types').Router[]),
 };
