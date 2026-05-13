@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Video,
-  Search,
-  Play,
-  Clock,
   Eye,
+  Play,
+  Plus,
+  Search,
   ThumbsUp,
   ExternalLink,
   Plus,
@@ -26,6 +25,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -54,6 +54,18 @@ interface HelpVideo {
   likes: number;
   createdAt: string;
 }
+
+const getYoutubeId = (url: string) => {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2] && match[2].length === 11 ? match[2] : null;
+};
+
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const STORAGE_KEY = 'zota-admin-help-videos';
 
@@ -311,10 +323,10 @@ export default function SelfHelpPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search videos..."
+                  placeholder="Search videos, workflows, or categories..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="h-11 pl-10"
                 />
               </div>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -507,3 +519,4 @@ export default function SelfHelpPage() {
     </PageTransition>
   );
 }
+

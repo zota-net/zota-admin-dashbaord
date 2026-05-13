@@ -166,7 +166,7 @@ export default function UsersPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <Users className="h-6 w-6 text-primary" />
-              Users Management
+              Clients
             </h1>
             <p className="text-muted-foreground">
               View and manage all clients on the platform
@@ -237,19 +237,23 @@ export default function UsersPage() {
                       <TableHead>Business</TableHead>
                       <TableHead>Admin</TableHead>
                       <TableHead className="hidden md:table-cell">Contact</TableHead>
+                      <TableHead>Email Verified</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="hidden lg:table-cell">Joined</TableHead>
+                      <TableHead className="hidden lg:table-cell">Onboarding Date</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredClients.map((client) => {
                       const StatusIcon = statusConfig[client.status as keyof typeof statusConfig]?.icon || AlertCircle;
+                      // Mocking isVerified based on status (Active = true, Pending = false)
+                      const isEmailVerified = client.status !== 'Pending';
+                      
                       return (
                         <TableRow key={client.id}>
                           <TableCell>
                             <Link
-                              href={`/admin/users/${client.id}`}
+                              href={`/admin/clients/${client.id}`}
                               className="flex items-center gap-3 hover:text-primary transition-colors"
                             >
                               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -277,6 +281,11 @@ export default function UsersPage() {
                             </p>
                           </TableCell>
                           <TableCell>
+                            <Badge variant="outline" className={isEmailVerified ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"}>
+                              {isEmailVerified ? 'Verified' : 'Unverified'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             <Badge
                               variant="outline"
                               className={statusConfig[client.status as keyof typeof statusConfig]?.color}
@@ -301,9 +310,9 @@ export default function UsersPage() {
                                   View Details
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
-                                  <Link href={`/admin/users/${client.id}`}>
+                                  <Link href={`/admin/clients/${client.id}`}>
                                     <ChevronRight className="h-4 w-4 mr-2" />
-                                    Open Dashboard
+                                    View Full Client Detail
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -391,7 +400,7 @@ export default function UsersPage() {
                   </div>
                 )}
                 <div className="pt-4 border-t">
-                  <Link href={`/admin/users/${selectedClient.id}`}>
+                  <Link href={`/admin/clients/${selectedClient.id}`}>
                     <Button className="w-full">
                       <ChevronRight className="h-4 w-4 mr-2" />
                       View Full Dashboard

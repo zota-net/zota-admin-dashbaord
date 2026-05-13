@@ -18,6 +18,14 @@ import {
   Trash2,
   Edit,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface Admin {
   id: string;
@@ -32,6 +40,7 @@ export default function SettingsPage() {
     { id: '1', name: 'Super Admin', email: 'admin@zota.com', role: 'SuperAdmin', createdAt: '2024-01-01' },
     { id: '2', name: 'Support Agent', email: 'support@zota.com', role: 'Admin', createdAt: '2024-01-15' },
   ]);
+  const [showAddAdmin, setShowAddAdmin] = useState(false);
 
   return (
     <div className="p-8 space-y-6">
@@ -148,10 +157,44 @@ export default function SettingsPage() {
                 <Users className="w-5 h-5" />
                 Admin Users
               </CardTitle>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Admin
-              </Button>
+              <Dialog open={showAddAdmin} onOpenChange={setShowAddAdmin}>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Admin
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Admin</DialogTitle>
+                    <DialogDescription>
+                      Create a new administrator account with specific roles
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newAdminName">Name</Label>
+                      <Input id="newAdminName" placeholder="Admin name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newAdminEmail">Email</Label>
+                      <Input id="newAdminEmail" type="email" placeholder="admin@zota.com" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newAdminRole">Role</Label>
+                      <select className="w-full p-2 border rounded-md bg-background text-sm">
+                        <option value="Admin">Admin</option>
+                        <option value="SuperAdmin">SuperAdmin</option>
+                        <option value="Support">Support</option>
+                      </select>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="outline" onClick={() => setShowAddAdmin(false)}>Cancel</Button>
+                      <Button onClick={() => setShowAddAdmin(false)}>Create Admin</Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <div className="rounded-lg border">
@@ -178,7 +221,7 @@ export default function SettingsPage() {
                       <Button variant="ghost" size="icon">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive">
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setAdmins(prev => prev.filter(a => a.id !== admin.id))}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>

@@ -56,7 +56,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const handleSelect = (client: Client) => {
     onOpenChange(false);
     setQuery('');
-    router.push(`/admin/users/${client.id}`);
+    router.push(`/admin/clients/${client.id}`);
   };
 
   return (
@@ -115,7 +115,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
             <span>to search</span>
           </div>
           <Link
-            href="/admin/users"
+            href="/admin/clients"
             className="text-sm text-muted-foreground hover:text-primary"
           >
             View all clients

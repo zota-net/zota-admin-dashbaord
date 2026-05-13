@@ -14,45 +14,33 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { isAuthenticated, checkSession } = useAdminStore();
-  const [isMobile, setIsMobile] = useState(false);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    setIsMobile(window.innerWidth < 1024);
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  useEffect(() => {
-    if (pathname === '/admin/login') {
+    if (pathname === '/login') {
       setChecked(true);
       return;
     }
 
     const isValid = checkSession();
     if (!isAuthenticated && !isValid) {
-      router.replace('/admin/login');
-    } else {
-      setChecked(true);
+      router.replace('/login');
+      return;
     }
+
+    setChecked(true);
   }, [pathname, isAuthenticated, checkSession, router]);
 
-  if (!checked || pathname === '/admin/login') {
+  if (!checked || pathname === '/login') {
     return <>{children}</>;
   }
 
-  const sidebarWidth = 280;
-
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-transparent">
       <AdminSidebar />
       <AdminHeader />
-      <main
-        className="pt-14 sm:pt-16 min-h-screen transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-        style={{ marginLeft: sidebarWidth }}
-      >
-        <div className="p-3 sm:p-4 lg:p-6 w-full max-w-full overflow-x-hidden">
+      <main className="min-h-screen pt-24 lg:pl-72">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 pb-8 sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
