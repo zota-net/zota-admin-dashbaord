@@ -463,6 +463,48 @@ export interface ApiResponse<T = unknown> {
   data?: T;
 }
 
+// ─── SMS Float Types ──────────────────────────────────────────────────────────
+
+export interface SmsFloatBalance {
+  client_id:       number;
+  balance:         number;
+  smsRemaining:    number;
+  smsPricePerUnit: number;
+  totalSmsSent:    number;
+}
+
+export interface SmsSentLog {
+  id:                number;
+  client_id:         number;
+  recipient:         string;
+  message:           string;
+  voucherCode:       string;
+  cost:              number;
+  status:            'sent' | 'failed';
+  providerReference: string | null;
+  errorMessage:      string | null;
+  sentAt:            string;
+}
+
+export interface SmsTopup {
+  id:                number;
+  client_id:         number;
+  amount:            number;
+  smsCredits:        number;
+  phone:             string;
+  provider:          string;
+  status:            'pending' | 'completed' | 'failed';
+  externalReference: string | null;
+  createdAt:         string;
+}
+
+export interface SmsTopupRequest {
+  clientId: number;
+  amount:   number;
+  phone:    string;
+  provider: 'MTN_UGANDA' | 'AIRTEL_UGANDA';
+}
+
 // ─── Support Ticket Types ─────────────────────────────────────────────────────
 
 export interface TicketMessage {

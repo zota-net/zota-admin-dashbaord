@@ -165,6 +165,25 @@ function buildQuery(params?: ReportParams): string {
   return str ? `?${str}` : '';
 }
 
+// ─── SMS Float ───────────────────────────────────────────────────────────────
+
+export const smsService = {
+  getAllFloats: () =>
+    api.get<ApiResponse<any[]>>('/wallet/sms/float/all').then((r) => (r.data ?? r) as any[]),
+
+  getBalance: (clientId: string | number) =>
+    api.get<ApiResponse<any>>(`/wallet/sms/float/${clientId}`).then((r) => r.data ?? r),
+
+  topup: (data: { clientId: number; amount: number; phone: string; provider: string }) =>
+    api.post<ApiResponse<any>>('/wallet/sms/topup', data).then((r) => r.data ?? r),
+
+  getLogs: (clientId: string | number, limit = 50, offset = 0) =>
+    api.get<ApiResponse<any>>(`/wallet/sms/logs/${clientId}?limit=${limit}&offset=${offset}`).then((r) => r.data ?? r),
+
+  getTopupHistory: (clientId: string | number, limit = 50, offset = 0) =>
+    api.get<ApiResponse<any>>(`/wallet/sms/topups/${clientId}?limit=${limit}&offset=${offset}`).then((r) => r.data ?? r),
+};
+
 export const reportsService = {
   getSalesReport: (clientId: string, params?: ReportParams) =>
     api.get<ApiResponse<{ sales: RawVoucherSale[]; summary: Record<string, unknown> }>>(`/wallet/reports/sales/${clientId}${buildQuery(params)}`).then((response) => {
