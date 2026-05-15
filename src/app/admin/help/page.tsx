@@ -7,13 +7,11 @@ import {
   Plus,
   Search,
   ThumbsUp,
-  ExternalLink,
-  Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   Youtube,
+  Video,
+  Clock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +26,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -54,18 +51,6 @@ interface HelpVideo {
   likes: number;
   createdAt: string;
 }
-
-const getYoutubeId = (url: string) => {
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return match && match[2] && match[2].length === 11 ? match[2] : null;
-};
-
-const formatDuration = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
 
 const STORAGE_KEY = 'zota-admin-help-videos';
 
