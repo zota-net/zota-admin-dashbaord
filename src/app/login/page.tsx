@@ -32,13 +32,12 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const retuendata= await response.json()
-      const data=retuendata.data
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
-     
+
       login({
         token: data.token,
         admin: {
