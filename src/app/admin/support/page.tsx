@@ -97,7 +97,8 @@ const priorityConfig = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SupportTicketsPage() {
-  const { admin } = useAdminStore();
+  const { session } = useAdminStore();
+  const admin = session?.admin;
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isLoading, setIsLoading] = useState(true);
