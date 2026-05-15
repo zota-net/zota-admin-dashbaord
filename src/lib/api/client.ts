@@ -72,7 +72,7 @@ async function apiFetch<T = unknown>(endpoint: string, options: RequestOptions =
   if (response.status === 401 || response.status === 403) {
     useAdminStore.getState().logout();
     if (typeof window !== 'undefined') {
-      window.location.href = '/admin/login';
+      window.location.href = '/login';
     }
     throw new ApiError('Session expired or invalid. Please log in again.', response.status);
   }
