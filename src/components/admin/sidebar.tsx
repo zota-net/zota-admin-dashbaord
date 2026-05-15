@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   AlertCircle,
   ArrowUpRight,
+  BarChart3,
   Building2,
   ChevronRight,
   CreditCard,
@@ -14,11 +15,13 @@ import {
   Home,
   Image as ImageIcon,
   Menu,
+  Package,
   Settings,
+  Terminal,
+  Ticket,
   Users,
   Video,
-  Wallet,
-  Terminal,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -46,6 +49,16 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: 'Management',
+    items: [
+      { label: 'Vouchers', href: '/admin/vouchers', icon: Ticket },
+      { label: 'Payments', href: '/admin/payments', icon: CreditCard },
+      { label: 'Packages', href: '/admin/packages', icon: Package },
+      { label: 'Devices', href: '/admin/devices', icon: BarChart3 },
+      { label: 'Router Scripts', href: '/admin/routers', icon: Terminal },
+    ],
+  },
+  {
     title: 'Support',
     items: [
       { label: 'Support & Tickets', href: '/admin/support', icon: Headphones, badge: 'Live' },
@@ -53,59 +66,18 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Vouchers',
-    href: '/admin/vouchers',
-    icon: Ticket,
+    title: 'Content',
+    items: [
+      { label: 'Adverts', href: '/admin/adverts', icon: ImageIcon },
+      { label: 'Alerts', href: '/admin/alerts', icon: AlertCircle },
+    ],
   },
   {
-    label: 'Payments',
-    href: '/admin/payments',
-    icon: CreditCard,
-  },
-  {
-    label: 'Packages',
-    href: '/admin/packages',
-    icon: Package,
-  },
-  {
-    label: 'Devices',
-    href: '/admin/devices',
-    icon: BarChart3,
-  },
-  {
-    label: 'Router Scripts',
-    href: '/admin/routers',
-    icon: Terminal,
-  },
-  {
-    label: 'Support Tickets',
-    href: '/admin/support',
-    icon: Headphones,
-  },
-  {
-    label: 'Self-Help',
-    href: '/admin/help',
-    icon: Video,
-  },
-  {
-    label: 'Adverts',
-    href: '/admin/adverts',
-    icon: ImageIcon,
-  },
-  {
-    label: 'Alerts',
-    href: '/admin/alerts',
-    icon: AlertCircle,
-  },
-  {
-    label: 'Logs',
-    href: '/admin/logs',
-    icon: FileText,
-  },
-  {
-    label: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
+    title: 'System',
+    items: [
+      { label: 'Logs', href: '/admin/logs', icon: FileText },
+      { label: 'Settings', href: '/admin/settings', icon: Settings },
+    ],
   },
 ];
 
