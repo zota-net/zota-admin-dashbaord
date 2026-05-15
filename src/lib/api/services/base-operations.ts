@@ -134,6 +134,9 @@ export const bopDevicesService = {
 
   getByMac: (macAddress: string) =>
     api.get<ApiResponse<BopDevice>>(`/bop/devices/mac/${macAddress}`).then((response) => response.data ?? response),
+
+  getByClient: (clientId: string) =>
+    api.get<ApiResponse<BopDevice[]>>(`/bop/devices/client/${clientId}`).then((response) => response.data ?? []),
 };
 // ─── Support Tickets ──────────────────────────────────────────────────────────
 

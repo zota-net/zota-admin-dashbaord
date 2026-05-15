@@ -103,6 +103,9 @@ export const walletsService = {
 
   getByClient: (clientId: string) =>
     api.get<ApiResponse<RawWallet>>(`/wallet/wallets/client/${clientId}`).then((response) => normalizeWallet(response.data ?? response as unknown as RawWallet)),
+
+  getAdminWallet: () =>
+    api.get<ApiResponse<RawWallet>>('/wallet/wallets/getAdminWallet').then((response) => normalizeWallet(response.data ?? response as unknown as RawWallet)),
 };
 
 // ─── Withdrawals ─────────────────────────────────────────────────────────────

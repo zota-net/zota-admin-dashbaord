@@ -90,10 +90,10 @@ export default function ClientPackagesPage() {
       maximumFractionDigits: 0,
     }).format(amount);
 
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes}m`;
-    if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
-    return `${Math.floor(minutes / 1440)}d`;
+  const formatDuration = (seconds: number) => {
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.round(seconds / 3600)}h`;
+    return `${Math.round(seconds / 86400)}d`;
   };
 
   if (isLoading) {

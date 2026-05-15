@@ -19,23 +19,25 @@ import {
 import {
   DollarSign,
   TrendingUp,
-  TrendingDown,
   Calendar,
   Download,
-  Filter,
   ArrowUpRight,
   ArrowDownRight,
   Wallet,
   CreditCard,
+  BarChart2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
-import { clientsService, reportsService, walletsService } from '@/lib/api';
-import { format, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
+import { clientsService, reportsService } from '@/lib/api';
+import type { VoucherSale } from '@/lib/api/types';
+import { format, subDays, parseISO } from 'date-fns';
 
 type TimeRange = '7d' | '30d' | '90d' | '12m';
+
+const PROVIDER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#6b7280'];
 
 interface RevenueData {
   date: string;
@@ -55,6 +57,7 @@ export default function RevenuePage() {
     growth: 0,
   });
   const [recentWithdrawals, setRecentWithdrawals] = useState<any[]>([]);
+  const [allSales, setAllSales] = useState<VoucherSale[]>([]);
 
   useEffect(() => {
     const loadRevenueData = async () => {
@@ -73,29 +76,25 @@ export default function RevenuePage() {
         let totalRev = 0;
         let totalFees = 0;
         let totalTrans = 0;
+        const collectedSales: VoucherSale[] = [];
 
-        for (const client of clientsData) {
-          try {
-            const salesReport = await reportsService.getSalesReport(client.id, {
-              startDate: format(subDays(new Date(), days), 'yyyy-MM-dd'),
-              endDate: format(new Date(), 'yyyy-MM-dd'),
-            });
-
-            totalRev += salesReport.summary.totalRevenue ?? 0;
-            totalFees += salesReport.summary.totalFees ?? 0;
-            totalTrans += salesReport.sales.length;
-
-            for (const sale of salesReport.sales) {
-              const date = format(parseISO(sale.createdAt), 'yyyy-MM-dd');
-              if (dailyData[date]) {
-                dailyData[date].revenue += sale.amount;
-                dailyData[date].transactions += 1;
-              }
+        await Promise.allSettled(clientsData.map(async (client) => {
+          const salesReport = await reportsService.getSalesReport(client.id, {
+            startDate: format(subDays(new Date(), days), 'yyyy-MM-dd'),
+            endDate: format(new Date(), 'yyyy-MM-dd'),
+          });
+          totalRev += salesReport.summary.totalRevenue ?? 0;
+          totalFees += salesReport.summary.totalFees ?? 0;
+          totalTrans += salesReport.sales.length;
+          collectedSales.push(...salesReport.sales);
+          for (const sale of salesReport.sales) {
+            const date = format(parseISO(sale.createdAt), 'yyyy-MM-dd');
+            if (dailyData[date]) {
+              dailyData[date].revenue += sale.amount;
+              dailyData[date].transactions += 1;
             }
-          } catch (e) {
-            // Skip clients with no data
           }
-        }
+        }));
 
         const chartData = Object.entries(dailyData).map(([date, data]) => ({
           date: format(parseISO(date), 'MMM dd'),
@@ -104,6 +103,7 @@ export default function RevenuePage() {
         }));
 
         setRevenueData(chartData);
+        setAllSales(collectedSales);
         
         const avgTrans = totalTrans > 0 ? totalRev / totalTrans : 0;
         const growth = 0;
@@ -135,13 +135,20 @@ export default function RevenuePage() {
     }).format(amount);
 
   const paymentMethodData = useMemo(() => {
-    return [
-      { name: 'Mobile Money', value: 45, color: '#22c55e' },
-      { name: 'Bank Transfer', value: 30, color: '#3b82f6' },
-      { name: 'Cash', value: 15, color: '#f59e0b' },
-      { name: 'Other', value: 10, color: '#6b7280' },
-    ];
-  }, []);
+    if (allSales.length === 0) return [];
+    const totals: Record<string, number> = {};
+    for (const sale of allSales) {
+      totals[sale.provider] = (totals[sale.provider] ?? 0) + sale.amount;
+    }
+    const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
+    return Object.entries(totals)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value], i) => ({
+        name,
+        value: Math.round((value / grandTotal) * 100),
+        color: PROVIDER_COLORS[i % PROVIDER_COLORS.length],
+      }));
+  }, [allSales]);
 
   return (
     <PageTransition>
@@ -357,7 +364,7 @@ export default function RevenuePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart className="h-5 w-5" />
+              <BarChart2 className="h-5 w-5" />
               Transaction Volume
             </CardTitle>
           </CardHeader>

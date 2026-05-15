@@ -35,7 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
 import { StatsCard } from '@/components/admin/cards/stat-card';
-import { clientsService, reportsService, vouchersService, routersService } from '@/lib/api';
+import { clientsService, reportsService, vouchersService, routersService, walletsService } from '@/lib/api';
 import type { Client, ClientReport, SalesReport, VoucherSale, Voucher, Router } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
 
@@ -65,12 +65,13 @@ export default function ClientDetailPage() {
         setIsLoading(true);
         setError(null);
 
-        const [clientData, reportData, salesData, vouchersData, routersData] = await Promise.allSettled([
+        const [clientData, reportData, salesData, vouchersData, routersData, walletData] = await Promise.allSettled([
           clientsService.getById(clientId),
           clientsService.getReport(clientId),
           reportsService.getSalesReport(clientId),
           vouchersService.getByClient(clientId),
-          routersService.getByClient(clientId).catch(() => []), // fallback empty array if errors out
+          routersService.getByClient(clientId),
+          walletsService.getByClient(clientId),
         ]);
 
         if (clientData.status === 'fulfilled' && clientData.value) {
@@ -96,12 +97,10 @@ export default function ClientDetailPage() {
 
         if (routersData.status === 'fulfilled' && Array.isArray(routersData.value)) {
           setRouters(routersData.value);
-        } else {
-          // Mock data to demonstrate UI since mikrotik API could fail outside actual environments
-          setRouters([
-             { id: '1', name: 'Main Router', ipAddress: '192.168.88.1', apiPort: 8728, apiUser: 'admin', client_id: clientId, isConnected: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-             { id: '2', name: 'Branch Office', ipAddress: '10.0.0.1', apiPort: 8728, apiUser: 'admin', client_id: clientId, isConnected: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-          ]);
+        }
+
+        if (walletData.status === 'fulfilled' && walletData.value) {
+          setWalletBalance(walletData.value.balance ?? 0);
         }
       } catch (err) {
         console.error('Failed to load client data:', err);

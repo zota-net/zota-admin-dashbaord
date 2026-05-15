@@ -3,147 +3,62 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Wifi,
-  Search,
-  ChevronRight,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-} from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Wifi, WifiOff, Search, ChevronRight, Smartphone } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { PageTransition } from '@/components/common';
-import { clientsService, bopDevicesService as devicesService } from '@/lib/api';
-import type { Client, Device } from '@/lib/api/types';
-import { format, parseISO } from 'date-fns';
-import { MoreHorizontal, Power, PowerOff, RefreshCw } from 'lucide-react';
+import { clientsService, bopDevicesService } from '@/lib/api';
+import type { Client, BopDevice } from '@/lib/api/types';
 
-const toast = {
-  success: (msg: string) => console.log(msg),
-  error: (msg: string) => console.error(msg),
-};
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  online: {
-    label: 'Online',
-    color: 'bg-green-500/10 text-green-500',
-  },
-  offline: {
-    label: 'Offline',
-    color: 'bg-red-500/10 text-red-500',
-  },
-  pending: {
-    label: 'Pending',
-    color: 'bg-yellow-500/10 text-yellow-500',
-  },
-};
+const fmtDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString() : '—';
 
 export default function ClientDevicesPage() {
   const params = useParams();
   const clientId = params.clientId as string;
 
   const [client, setClient] = useState<Client | null>(null);
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<BopDevice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
       if (!clientId) return;
-
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        const [clientData] = await Promise.allSettled([
+        const [clientData, devicesData] = await Promise.allSettled([
           clientsService.getById(clientId),
+          bopDevicesService.getByClient(clientId),
         ]);
-        
-        // Mocking devices since bopDevicesService doesn't implement getByClient yet
-        const devicesData = { status: 'fulfilled', value: [] };
-
-        if (clientData.status === 'fulfilled' && clientData.value) {
-          setClient(clientData.value);
+        if (clientData.status === 'fulfilled' && clientData.value) setClient(clientData.value);
+        if (devicesData.status === 'fulfilled' && Array.isArray(devicesData.value)) {
+          setDevices(devicesData.value.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
         }
-
-        if (devicesData.status === 'fulfilled' && devicesData.value) {
-          setDevices(devicesData.value);
-        }
-      } catch (err) {
-        console.error('Failed to load devices:', err);
-        setError('Failed to load devices');
       } finally {
         setIsLoading(false);
       }
     };
-
     loadData();
   }, [clientId]);
 
-  const handleBlockDevice = async (deviceId: string) => {
-    try {
-      // await devicesService.updateStatus(deviceId, 'blocked'); // Mocked
-      setDevices(
-        devices.map((d) =>
-          d.id === deviceId ? { ...d, status: 'blocked' as const } : d
-        )
-      );
-      toast.success('Device blocked');
-    } catch (err) {
-      console.error('Failed to block device:', err);
-      toast.error('Failed to block device');
-    }
-  };
+  const isExpired = (d: BopDevice) => new Date(d.expiresAt) < new Date();
 
-  const filteredDevices = devices.filter((d) => {
-    const matchesSearch =
-      d.macAddress?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.name?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
-
-  const deviceCounts = devices.reduce(
-    (acc, d) => {
-      if (d.status === 'online') acc.online++;
-      else if (d.status === 'offline') acc.offline++;
-      else acc.pending++;
-      return acc;
-    },
-    { online: 0, offline: 0, pending: 0 }
+  const filtered = devices.filter(d =>
+    !search || d.macAddress.toLowerCase().includes(search.toLowerCase())
   );
+
+  const stats = {
+    total: devices.length,
+    active: devices.filter(d => !isExpired(d)).length,
+    expired: devices.filter(isExpired).length,
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full" />
-          <p className="text-muted-foreground">Loading devices...</p>
-        </div>
+        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -151,133 +66,86 @@ export default function ClientDevicesPage() {
   return (
     <PageTransition>
       <div className="space-y-6">
-        {/* Breadcrumb Header */}
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Link href="/admin/clients" className="hover:text-primary transition-colors">
-            Users
-          </Link>
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <Link href="/admin/clients" className="hover:text-primary transition-colors">Clients</Link>
           <ChevronRight className="h-4 w-4" />
           <Link href={`/admin/clients/${clientId}`} className="hover:text-primary transition-colors">
             {client?.businessName || 'Client'}
           </Link>
           <ChevronRight className="h-4 w-4" />
-          <span>Devices</span>
+          <span className="text-foreground">Devices</span>
         </div>
 
-        {/* Title */}
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Wifi className="h-6 w-6 text-primary" />
-            Devices
+            Connected Devices
           </h1>
-          <p className="text-muted-foreground">
-            All devices for {client?.businessName || 'this client'}
-          </p>
+          <p className="text-muted-foreground">Hotspot devices for {client?.businessName || 'this client'}</p>
         </div>
 
-        {/* Stats */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-muted-foreground">Total Devices</p>
-              <p className="text-3xl font-bold mt-2">{devices.length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-muted-foreground">Online</p>
-              <p className="text-3xl font-bold text-green-500 mt-2">{deviceCounts.online}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-sm font-medium text-muted-foreground">Offline</p>
-              <p className="text-3xl font-bold text-red-500 mt-2">{deviceCounts.offline}</p>
-            </CardContent>
-          </Card>
+          {[
+            { label: 'Total Devices', value: stats.total, color: '' },
+            { label: 'Active Sessions', value: stats.active, color: 'text-green-500' },
+            { label: 'Expired Sessions', value: stats.expired, color: 'text-muted-foreground' },
+          ].map(s => (
+            <Card key={s.label}><CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">{s.label}</p>
+              <p className={`text-3xl font-bold mt-2 ${s.color}`}>{s.value}</p>
+            </CardContent></Card>
+          ))}
         </div>
 
-        {/* Table */}
         <Card>
           <CardHeader>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-3 items-center justify-between">
               <CardTitle>All Devices</CardTitle>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by MAC or name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 w-[200px]"
-                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input className="pl-9 w-[220px]" placeholder="Search MAC address…" value={search} onChange={e => setSearch(e.target.value)} />
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            {filteredDevices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Wifi className="h-12 w-12 mb-4 opacity-50" />
+          <CardContent className="p-0">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                <Smartphone className="h-12 w-12 opacity-50" />
                 <p className="text-lg font-medium">No devices found</p>
               </div>
             ) : (
-              <div className="rounded-lg border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
                       <TableHead>MAC Address</TableHead>
-                      <TableHead>IP Address</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="hidden md:table-cell">Last Seen</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead>Expires</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDevices.map((device) => (
-                      <TableRow key={device.id}>
-                        <TableCell>
-                          <p className="font-medium">{device.name || 'Unknown'}</p>
-                        </TableCell>
-                        <TableCell>
-                          <code className="font-mono text-sm">{device.macAddress}</code>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {device.ipAddress || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={statusConfig[device.status]?.color}
-                          >
-                            {statusConfig[device.status]?.label || device.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                          {device.lastSeen
-                            ? format(parseISO(device.lastSeen), 'MMM d, h:mm a')
-                            : 'Never'}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleBlockDevice(device.id)}
-                              >
-                                <PowerOff className="h-4 w-4 mr-2 text-red-500" />
-                                Block Device
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filtered.map(d => {
+                      const expired = isExpired(d);
+                      return (
+                        <TableRow key={d.id}>
+                          <TableCell className="font-mono text-sm">{d.macAddress}</TableCell>
+                          <TableCell>
+                            {expired ? (
+                              <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
+                                <WifiOff className="w-3 h-3" />Expired
+                              </Badge>
+                            ) : (
+                              <Badge variant="default" className="gap-1 text-xs">
+                                <Wifi className="w-3 h-3" />Active
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{fmtDate(d.JoinedAt ?? d.createdAt)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{fmtDate(d.expiresAt)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
