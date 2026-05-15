@@ -134,7 +134,7 @@ function extractYouTubeId(url: string): string | null {
   ];
   for (const p of patterns) {
     const m = url.match(p);
-    if (m) return m[1];
+    if (m) return m[1] ?? null;
   }
   return null;
 }
