@@ -43,6 +43,18 @@ export const clientsService = {
 
   getAdverts: (id: string) =>
     api.get<ApiResponse<Advert[]>>(`/bop/adverts/client/${id}`).then((response) => response.data ?? []),
+
+  reset: (
+    id: string,
+    options: {
+      clearVouchers?: boolean
+      clearPackages?: boolean
+      clearDevices?: boolean
+      clearAdverts?: boolean
+      clearBalance?: boolean
+    }
+  ) =>
+    api.post<ApiResponse<{ clientId: number; report: Record<string, any> }>>(`/bop/clients/${id}/reset`, options),
 };
 
 // ─── Packages ────────────────────────────────────────────────────────────────

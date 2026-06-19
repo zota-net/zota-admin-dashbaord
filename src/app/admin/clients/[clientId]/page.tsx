@@ -20,7 +20,8 @@ import {
   Phone,
   Power,
   PowerOff,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Table,
@@ -36,6 +37,7 @@ import { Badge } from '@/components/ui/badge';
 import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
 import { StatsCard } from '@/components/admin/cards/stat-card';
 import { clientsService, reportsService, vouchersService, routersService, walletsService } from '@/lib/api';
+import { ClientResetDialog } from '@/components/admin/dialogs/client-reset-dialog';
 import type { Client, ClientReport, SalesReport, VoucherSale, Voucher, Router } from '@/lib/api/types';
 import { format, parseISO } from 'date-fns';
 
@@ -56,6 +58,7 @@ export default function ClientDetailPage() {
   const [routers, setRouters] = useState<Router[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadClientData = async () => {
@@ -236,6 +239,10 @@ export default function ClientDetailPage() {
                   <PowerOff className="w-4 h-4 mr-1" /> Deactivate
                 </Button>
               )}
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button variant="ghost" size="sm" className="text-orange-500 hover:bg-orange-50 hover:text-orange-600" onClick={() => setResetDialogOpen(true)}>
+                <RotateCcw className="w-4 h-4 mr-1" /> Reset
+              </Button>
             </div>
           </div>
         </motion.div>
@@ -418,6 +425,16 @@ export default function ClientDetailPage() {
           </Card>
         </div>
       </div>
+      <ClientResetDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        clientId={clientId}
+        clientName={client.businessName}
+        walletBalance={walletBalance}
+        onResetComplete={() => {
+          setWalletBalance(0);
+        }}
+      />
     </PageTransition>
   );
 }

@@ -1,20 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertCircle,
   ArrowUpRight,
   BarChart3,
   Building2,
-  ChevronRight,
+  ChevronLeft,
   CreditCard,
   FileText,
   Headphones,
   Home,
   Image as ImageIcon,
-  Menu,
   MessageSquare,
   Package,
   Settings,
@@ -22,11 +22,13 @@ import {
   Ticket,
   Users,
   Video,
-  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Logo } from '@/components/common';
+import { useAppStore } from '@/lib/store/admin-store';
 
 interface NavItem {
   label: string;
@@ -83,137 +85,202 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-function SidebarContent({
-  pathname,
-  onNavigate,
-}: {
-  pathname: string;
-  onNavigate?: () => void;
-}) {
-  const isActive = (href: string) => {
-    if (href === '/admin') {
-      return pathname === '/admin' || pathname === '/admin/dashboard';
-    }
+export function AdminSidebar() {
+  const pathname = usePathname();
+  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
+  const collapsed = sidebarCollapsed && !isMobile;
+  const sidebarWidth = collapsed ? 72 : 280;
+
+  useEffect(() => {
+    const check = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) setMobileOpen(false);
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) setMobileOpen(false);
+  }, [pathname, isMobile]);
+
+  const isActive = (href: string) => {
+    if (href === '/admin') return pathname === '/admin' || pathname === '/admin/dashboard';
     return pathname.startsWith(href);
   };
 
-  return (
+  const NavContent = () => (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[hsl(var(--sidebar-border))] px-5 py-5">
-        <Link href="/admin" onClick={onNavigate} className="flex items-center gap-3">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[hsl(var(--sidebar-foreground))]">
-              Zota Admin
-            </p>
-            <p className="truncate text-xs text-slate-400">
-              Operations control center
-            </p>
-          </div>
-        </Link>
-      </div>
-
-      <div className="px-4 py-4">
-        <div className="rounded-2xl border border-[hsl(var(--sidebar-border))] bg-white/5 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                Workspace
-              </p>
-              <p className="mt-1 text-sm font-medium text-[hsl(var(--sidebar-foreground))]">
-                Kampala Region
-              </p>
-            </div>
-            <Badge className="border-0 bg-emerald-500/15 text-emerald-300">Healthy</Badge>
-          </div>
-        </div>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        <div className="flex flex-col gap-5">
-          {navGroups.map((group) => (
-            <div key={group.title} className="flex flex-col gap-2">
-              <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                {group.title}
-              </p>
-              <div className="flex flex-col gap-1">
-                {group.items.map((item) => {
-                  const active = isActive(item.href);
-                  const Icon = item.icon;
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onNavigate}
-                      className={cn(
-                        'group flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all',
-                        active
-                          ? 'bg-white text-slate-950 shadow-sm'
-                          : 'text-slate-300 hover:bg-white/8 hover:text-white'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'flex size-9 items-center justify-center rounded-lg transition-colors',
-                          active ? 'bg-slate-100 text-slate-900' : 'bg-white/5 text-slate-300'
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="truncate font-medium">{item.label}</span>
-                        {item.badge ? (
-                          <Badge className="border-0 bg-blue-500/15 text-blue-300">
-                            {item.badge}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {active ? (
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
-                      ) : null}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-export function AdminSidebar() {
-  const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  return (
-    <>
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] lg:block">
-        <SidebarContent pathname={pathname} />
-      </aside>
-
-      <div className="fixed bottom-5 right-5 z-40 lg:hidden">
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-between px-4 border-b border-border flex-shrink-0">
+        <motion.div initial={false} animate={{ opacity: 1 }} className="flex items-center">
+          <Logo size={collapsed ? 'sm' : 'md'} showText={!collapsed} />
+        </motion.div>
         <Button
+          variant="ghost"
           size="icon"
-          className="size-12 rounded-full shadow-lg"
-          onClick={() => setMobileOpen((current) => !current)}
+          onClick={() => isMobile ? setMobileOpen(false) : toggleSidebar()}
+          className="h-8 w-8 shrink-0"
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          <motion.div
+            initial={false}
+            animate={{ rotate: collapsed ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </motion.div>
         </Button>
       </div>
 
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-sm lg:hidden">
-          <aside className="h-full w-80 max-w-[88vw] border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar))] shadow-2xl">
-            <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} />
-          </aside>
-        </div>
-      ) : null}
+      {/* Navigation */}
+      <ScrollArea className="flex-1 px-3 py-4">
+        <nav className="space-y-6 pr-2">
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              {!collapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
+                  {group.title}
+                </motion.p>
+              )}
+
+              {group.items.map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                      'hover:bg-accent/50 active:bg-accent/70 select-none min-h-[2.75rem]',
+                      active
+                        ? 'bg-primary/10 text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                      collapsed && 'justify-center px-0'
+                    )}
+                  >
+                    {/* Active left border indicator */}
+                    {active && (
+                      <motion.div
+                        layoutId="activeNav"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary"
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      />
+                    )}
+
+                    <Icon className={cn(
+                      'h-5 w-5 shrink-0 transition-transform duration-200',
+                      'group-hover:scale-110 group-active:scale-95',
+                      active && 'text-primary'
+                    )} />
+
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex-1 truncate"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+
+                    {!collapsed && item.badge && (
+                      <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">
+                        {item.badge}
+                      </Badge>
+                    )}
+
+                    {collapsed && item.badge && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                        •
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+      </ScrollArea>
+
+      {/* Footer */}
+      <div className="border-t border-border p-4 flex-shrink-0">
+        {!collapsed ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-between text-xs text-muted-foreground"
+          >
+            <span>v1.0.0</span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              Online
+            </span>
+          </motion.div>
+        ) : (
+          <div className="flex justify-center">
+            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="System Online" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{ width: sidebarWidth }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        className="fixed left-0 top-0 z-30 h-screen hidden lg:block border-r border-border bg-card/95 backdrop-blur-xl overflow-hidden"
+      >
+        <NavContent />
+      </motion.aside>
+
+      {/* Mobile FAB */}
+      <button
+        className="fixed bottom-5 right-5 z-40 lg:hidden flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+        onClick={() => setMobileOpen(v => !v)}
+        aria-label="Toggle menu"
+      >
+        <Building2 className="h-5 w-5" />
+      </button>
+
+      {/* Mobile overlay + drawer */}
+      <AnimatePresence>
+        {isMobile && mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileOpen(false)}
+              className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden cursor-pointer"
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+              className="fixed left-0 top-0 z-40 h-screen w-[280px] border-r border-border bg-card/95 backdrop-blur-xl lg:hidden"
+            >
+              <NavContent />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
     </>
   );
 }
