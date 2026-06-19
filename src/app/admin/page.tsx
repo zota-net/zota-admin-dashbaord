@@ -69,12 +69,12 @@ export default function AdminDashboardPage() {
   const chartData = useMemo(() => {
     const byMonth: Record<string, { revenue: number; fees: number }> = {};
     allSales.forEach(sale => {
-      const m = MONTHS[new Date(sale.createdAt).getMonth()];
+      const m = MONTHS[new Date(sale.createdAt).getMonth()]!;
       if (!byMonth[m]) byMonth[m] = { revenue: 0, fees: 0 };
-      byMonth[m].revenue += sale.amount;
-      byMonth[m].fees += sale.fee;
+      byMonth[m]!.revenue += sale.amount;
+      byMonth[m]!.fees += sale.fee;
     });
-    return MONTHS.filter(m => byMonth[m]).map(m => ({ month: m, revenue: byMonth[m].revenue, fees: byMonth[m].fees }));
+    return MONTHS.filter(m => byMonth[m]).map(m => ({ month: m, revenue: byMonth[m]!.revenue, fees: byMonth[m]!.fees }));
   }, [allSales]);
 
   const recentSales = useMemo(() =>
