@@ -299,9 +299,10 @@ export default function RevenuePage() {
                     />
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: 'var(--card)',
-                        border: '1px solid var(--border)',
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
+                        color: 'hsl(var(--card-foreground))',
                       }}
                       formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                     />
@@ -381,9 +382,10 @@ export default function RevenuePage() {
                   <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'var(--card)',
-                      border: '1px solid var(--border)',
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
+                      color: 'hsl(var(--card-foreground))',
                     }}
                     formatter={(value: number) => [value, 'Transactions']}
                   />
@@ -406,41 +408,45 @@ export default function RevenuePage() {
               Request Withdrawal
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-lg border">
-              <div className="grid grid-cols-4 gap-4 p-3 text-sm font-medium text-muted-foreground bg-muted/50">
-                <div>Date</div>
-                <div>Amount</div>
-                <div>Method</div>
-                <div>Status</div>
+          <CardContent className="p-0">
+            {recentWithdrawals.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground text-sm">
+                No withdrawals yet. Request your first withdrawal above.
               </div>
-              {recentWithdrawals.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  No withdrawals yet. Request your first withdrawal above.
-                </div>
-              ) : (
-                recentWithdrawals.map((withdrawal, index) => (
-                  <div key={index} className="grid grid-cols-4 gap-4 p-3 text-sm border-t">
-                    <div>{withdrawal.date}</div>
-                    <div className="font-medium">{formatCurrency(withdrawal.amount)}</div>
-                    <div>{withdrawal.method}</div>
-                    <div>
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                          withdrawal.status === 'completed'
-                            ? 'bg-green-500/10 text-green-500'
-                            : withdrawal.status === 'pending'
-                            ? 'bg-yellow-500/10 text-yellow-500'
-                            : 'bg-red-500/10 text-red-500'
-                        }`}
-                      >
-                        {withdrawal.status}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/40">
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Amount</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Method</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {recentWithdrawals.map((withdrawal, index) => (
+                      <tr key={index} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 text-muted-foreground">{withdrawal.date}</td>
+                        <td className="px-4 py-3 font-medium">{formatCurrency(withdrawal.amount)}</td>
+                        <td className="px-4 py-3">{withdrawal.method}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            withdrawal.status === 'completed'
+                              ? 'bg-emerald-500/10 text-emerald-600'
+                              : withdrawal.status === 'pending'
+                              ? 'bg-yellow-500/10 text-yellow-600'
+                              : 'bg-destructive/10 text-destructive'
+                          }`}>
+                            {withdrawal.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

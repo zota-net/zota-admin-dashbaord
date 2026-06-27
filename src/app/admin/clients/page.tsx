@@ -213,7 +213,7 @@ export default function UsersPage() {
                 <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
               </div>
             ) : error ? (
-              <div className="flex flex-col items-center justify-center py-12 text-red-500">
+              <div className="flex flex-col items-center justify-center py-12 text-destructive">
                 <p>{error}</p>
                 <Button variant="outline" onClick={() => window.location.reload()} className="mt-4">
                   Retry
@@ -230,7 +230,7 @@ export default function UsersPage() {
                 </p>
               </div>
             ) : (
-              <div className="rounded-lg border overflow-x-auto">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

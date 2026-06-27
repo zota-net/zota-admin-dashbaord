@@ -170,7 +170,7 @@ export default function ClientDetailPage() {
   if (error || !client) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <p className="text-lg font-medium text-red-500">{error || 'Client not found'}</p>
+        <p className="text-lg font-medium text-destructive">{error || 'Client not found'}</p>
         <Link href="/admin/clients">
           <Button className="mt-4">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -225,22 +225,22 @@ export default function ClientDetailPage() {
             {/* Action Levers */}
             <div className="flex items-center gap-2 bg-muted p-1 rounded-md border flex-wrap">
               {client.status !== 'Active' && (
-                <Button variant="ghost" size="sm" className="text-green-600 hover:bg-green-50 hover:text-green-700" onClick={() => handleStatusChange('Active')}>
+                <Button variant="ghost" size="sm" className="text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700" onClick={() => handleStatusChange('Active')}>
                   <Power className="w-4 h-4 mr-1" /> Activate
                 </Button>
               )}
               {client.status !== 'Suspended' && (
-                <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600" onClick={() => handleStatusChange('Suspended')}>
+                <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleStatusChange('Suspended')}>
                   <AlertCircle className="w-4 h-4 mr-1" /> Suspend
                 </Button>
               )}
               {client.status !== 'InActive' && (
-                <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-100 hover:text-gray-600" onClick={() => handleStatusChange('InActive')}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => handleStatusChange('InActive')}>
                   <PowerOff className="w-4 h-4 mr-1" /> Deactivate
                 </Button>
               )}
               <div className="w-px h-5 bg-border mx-1" />
-              <Button variant="ghost" size="sm" className="text-orange-500 hover:bg-orange-50 hover:text-orange-600" onClick={() => setResetDialogOpen(true)}>
+              <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10" onClick={() => setResetDialogOpen(true)}>
                 <RotateCcw className="w-4 h-4 mr-1" /> Reset
               </Button>
             </div>
@@ -344,7 +344,7 @@ export default function ClientDetailPage() {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Linked Routers */}
           <Card>
-            <CardHeader className="pb-2 border-b">
+            <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold flex flex-row items-center gap-2"><HardDrive className="h-5 w-5 text-purple-500"/> Connected Routers</CardTitle>
                 <div className="text-sm font-medium text-muted-foreground">{routers.length} Routers</div>
@@ -388,7 +388,7 @@ export default function ClientDetailPage() {
 
           {/* Recent Sales */}
           <Card>
-            <CardHeader className="pb-2 border-b">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
                 Recent Sales Revenue

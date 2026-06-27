@@ -226,7 +226,7 @@ export default function ClientPackagesPage() {
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-red-500">
+                              <DropdownMenuItem className="text-destructive focus:text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
                               </DropdownMenuItem>

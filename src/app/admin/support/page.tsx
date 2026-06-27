@@ -357,7 +357,7 @@ export default function SupportTicketsPage() {
             {selectedTicket ? (
               <>
                 {/* Header */}
-                <CardHeader className="pb-3 shrink-0 border-b">
+                <CardHeader className="pb-3 shrink-0">
                   <div className="flex items-center gap-3">
                     {isMobile && (
                       <Button variant="ghost" size="icon" onClick={() => setSelectedTicket(null)} className="shrink-0">
