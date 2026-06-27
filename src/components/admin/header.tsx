@@ -20,9 +20,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { useAdminStore } from '@/lib/store/admin-store';
+import { useAdminStore, useAppStore } from '@/lib/store/admin-store';
 import { GlobalSearch } from '@/components/global-search';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 const pageMeta: Record<string, { title: string; subtitle: string }> = {
   '/admin': {
@@ -70,6 +71,7 @@ const pageMeta: Record<string, { title: string; subtitle: string }> = {
 export function AdminHeader() {
   const pathname = usePathname();
   const { session, logout } = useAdminStore();
+  const { sidebarCollapsed } = useAppStore();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const metaEntry = Object.entries(pageMeta).find(([key]) =>
@@ -82,53 +84,63 @@ export function AdminHeader() {
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-20 border-b border-border/70 bg-white/88 backdrop-blur lg:left-72 dark:bg-slate-950/88">
-        <div className="mx-auto flex h-24 w-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <header
+        className={cn(
+          'fixed inset-x-0 top-0 z-20 border-b border-border/50 bg-background/95 backdrop-blur-md transition-[left] duration-300',
+          sidebarCollapsed ? 'lg:left-[72px]' : 'lg:left-[280px]'
+        )}
+      >
+        <div className="mx-auto flex h-20 w-full max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="hidden sm:inline-flex">
-                <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+              <Badge variant="outline" className="hidden sm:inline-flex text-xs text-muted-foreground">
+                <ShieldCheck className="mr-1 h-3 w-3" />
                 Admin workspace
               </Badge>
             </div>
-            <h1 className="mt-2 truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            <h1 className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl">
               {meta.title}
             </h1>
-            <p className="mt-1 hidden text-sm text-muted-foreground md:block">
+            <p className="mt-0.5 hidden text-xs text-muted-foreground md:block">
               {meta.subtitle}
             </p>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="outline" className="hidden md:flex" onClick={() => setIsSearchOpen(true)}>
-              <Search className="mr-2 h-4 w-4" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="hidden md:flex h-9 text-muted-foreground"
+              onClick={() => setIsSearchOpen(true)}
+            >
+              <Search className="mr-2 h-3.5 w-3.5" />
               Search
             </Button>
 
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative h-9 w-9">
               <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-red-500" />
+              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive" />
             </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-11 gap-3 rounded-xl px-3">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <User className="h-4 w-4" />
+                <Button variant="ghost" className="h-9 gap-2 rounded-lg px-2">
+                  <div className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <User className="h-3.5 w-3.5" />
                   </div>
                   <div className="hidden text-left sm:block">
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-xs font-medium text-foreground leading-none">
                       {session?.admin?.fullname || 'Admin'}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">
                       {session?.admin?.email || 'admin@zota.com'}
                     </p>
                   </div>
-                  <ChevronDown className="hidden h-4 w-4 text-muted-foreground sm:block" />
+                  <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
-                <div className="flex flex-col gap-1 px-2 py-1.5">
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="flex flex-col gap-0.5 px-2 py-1.5">
                   <p className="text-sm font-medium">{session?.admin?.fullname || 'Admin'}</p>
                   <p className="text-xs text-muted-foreground">
                     {session?.admin?.email || 'admin@zota.com'}

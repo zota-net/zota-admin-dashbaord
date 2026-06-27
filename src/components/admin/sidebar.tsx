@@ -117,7 +117,7 @@ export function AdminSidebar() {
   const NavContent = () => (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-border flex-shrink-0">
+      <div className="flex h-16 items-center justify-between px-4 flex-shrink-0">
         <motion.div initial={false} animate={{ opacity: 1 }} className="flex items-center">
           <Logo size={collapsed ? 'sm' : 'md'} showText={!collapsed} />
         </motion.div>
@@ -215,7 +215,7 @@ export function AdminSidebar() {
       </ScrollArea>
 
       {/* Footer */}
-      <div className="border-t border-border p-4 flex-shrink-0">
+      <div className="p-4 flex-shrink-0">
         {!collapsed ? (
           <motion.div
             initial={{ opacity: 0 }}
@@ -244,7 +244,7 @@ export function AdminSidebar() {
         initial={false}
         animate={{ width: sidebarWidth }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        className="fixed left-0 top-0 z-30 h-screen hidden lg:block border-r border-border bg-card/95 backdrop-blur-xl overflow-hidden"
+        className="fixed left-0 top-0 z-30 h-screen hidden lg:block bg-card overflow-hidden"
       >
         <NavContent />
       </motion.aside>
@@ -274,7 +274,7 @@ export function AdminSidebar() {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-              className="fixed left-0 top-0 z-40 h-screen w-[280px] border-r border-border bg-card/95 backdrop-blur-xl lg:hidden"
+              className="fixed left-0 top-0 z-40 h-screen w-[280px] bg-card lg:hidden"
             >
               <NavContent />
             </motion.aside>

@@ -41,7 +41,7 @@ export default function AdminLayout({
       <AdminSidebar />
       <AdminHeader />
       <main
-        className={`min-h-screen pt-24 transition-[padding-left] duration-300 ${sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[280px]'}`}
+        className={`min-h-screen pt-20 transition-[padding-left] duration-300 ${sidebarCollapsed ? 'lg:pl-[72px]' : 'lg:pl-[280px]'}`}
       >
         <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 pb-8 sm:px-6 lg:px-8">
           {children}

@@ -40,25 +40,36 @@ export function DataTable<T extends { id?: string | number }>({
   onView,
 }: DataTableProps<T>) {
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              {columns.map((column, index) => (
-                <TableHead
-                  key={index}
-                  className={column.width ? `w-${column.width}` : ''}
-                >
-                  {column.header}
-                </TableHead>
-              ))}
-              {(onEdit || onDelete || onView) && <TableHead>Actions</TableHead>}
+    <div className="overflow-x-auto rounded-xl overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            {columns.map((column, index) => (
+              <TableHead
+                key={index}
+                className={column.width ? `w-${column.width}` : ''}
+              >
+                {column.header}
+              </TableHead>
+            ))}
+            {(onEdit || onDelete || onView) && (
+              <TableHead className="w-[60px]">Actions</TableHead>
+            )}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length + (onEdit || onDelete || onView ? 1 : 0)}
+                className="py-12 text-center text-muted-foreground"
+              >
+                No data available
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row, rowIndex) => (
-              <TableRow key={rowIndex} className="hover:bg-muted/50">
+          ) : (
+            data.map((row, rowIndex) => (
+              <TableRow key={rowIndex} className="hover:bg-muted/30">
                 {columns.map((column, colIndex) => (
                   <TableCell key={colIndex} className="py-3">
                     {column.render
@@ -92,7 +103,7 @@ export function DataTable<T extends { id?: string | number }>({
                         {onDelete && (
                           <DropdownMenuItem
                             onClick={() => onDelete(row)}
-                            className="text-red-600"
+                            className="text-destructive focus:text-destructive"
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
                             Delete
@@ -103,15 +114,10 @@ export function DataTable<T extends { id?: string | number }>({
                   </TableCell>
                 )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      {data.length === 0 && (
-        <div className="p-8 text-center text-muted-foreground">
-          No data available
-        </div>
-      )}
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }
