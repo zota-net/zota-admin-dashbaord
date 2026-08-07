@@ -22,6 +22,7 @@ import {
   PowerOff,
   AlertCircle,
   RotateCcw,
+  DollarSign,
 } from 'lucide-react';
 import {
   Table,
@@ -257,6 +258,17 @@ export default function ClientDetailPage() {
               <TrendingUp className="h-8 w-8 text-green-500" />
               <div>
                 <p className="font-semibold text-sm">Revenue Links</p>
+              </div>
+            </Link>
+          </StaggerItem>
+          <StaggerItem>
+            <Link
+              href={`/admin/clients/${client.id}/financials`}
+              className="flex items-center gap-3 p-4 rounded-lg border hover:bg-primary/5 hover:border-primary/50 transition-colors bg-card"
+            >
+              <DollarSign className="h-8 w-8 text-emerald-500" />
+              <div>
+                <p className="font-semibold text-sm">Financials</p>
               </div>
             </Link>
           </StaggerItem>
