@@ -50,6 +50,9 @@ export default function AdminLoginPage() {
 
       // Direct login (no OTP) — token at root level
       const userData = json.data ?? json;
+      if (userData.user.role !== 'SuperAdmin') {
+        throw new Error('Access denied. Only SuperAdmin accounts can access this dashboard.');
+      }
       login({
         token: userData.token,
         admin: {
@@ -87,6 +90,9 @@ export default function AdminLoginPage() {
 
       // Response: { status, message, data: { token, user } }
       const userData = json.data ?? json;
+      if (userData.user.role !== 'SuperAdmin') {
+        throw new Error('Access denied. Only SuperAdmin accounts can access this dashboard.');
+      }
       login({
         token: userData.token,
         admin: {

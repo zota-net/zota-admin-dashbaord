@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ export function AddAdminDialog({ open, onOpenChange, onAdminAdded }: AddAdminDia
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'Admin' | 'SuperAdmin'>('Admin');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -35,12 +37,13 @@ export function AddAdminDialog({ open, onOpenChange, onAdminAdded }: AddAdminDia
 
     setIsSubmitting(true);
     try {
-      await adminsService.create({ fullname, email, password, phone: phone || undefined });
-      toast.success('Admin added successfully');
+      await adminsService.create({ fullname, email, password, phone: phone || undefined, role });
+      toast.success(`${role} added successfully`);
       setFullname('');
       setEmail('');
       setPassword('');
       setPhone('');
+      setRole('Admin');
       onOpenChange(false);
       onAdminAdded();
     } catch (error: any) {
@@ -61,6 +64,23 @@ export function AddAdminDialog({ open, onOpenChange, onAdminAdded }: AddAdminDia
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <Label>Role *</Label>
+            <Select value={role} onValueChange={(v) => setRole(v as 'Admin' | 'SuperAdmin')}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Admin">Admin</SelectItem>
+                <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {role === 'SuperAdmin'
+                ? 'Full access to all admin features including managing other admins.'
+                : 'Standard admin access. Cannot manage other admin accounts.'}
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="admin-fullname">Full Name *</Label>
             <Input
@@ -104,7 +124,7 @@ export function AddAdminDialog({ open, onOpenChange, onAdminAdded }: AddAdminDia
               Cancel
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Admin'}
+              {isSubmitting ? 'Creating...' : `Create ${role}`}
             </Button>
           </div>
         </div>

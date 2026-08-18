@@ -522,6 +522,7 @@ export interface AddAdminRequest {
   email: string;
   password: string;
   phone?: string;
+  role?: 'Admin' | 'SuperAdmin';
 }
 
 export interface UpdateRoleRequest {

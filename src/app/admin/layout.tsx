@@ -13,7 +13,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, checkSession } = useAdminStore();
+  const { isAuthenticated, checkSession, session } = useAdminStore();
   const { sidebarCollapsed } = useAppStore();
   const [checked, setChecked] = useState(false);
 
@@ -29,8 +29,13 @@ export default function AdminLayout({
       return;
     }
 
+    if (session?.admin?.role !== 'SuperAdmin') {
+      router.replace('/login');
+      return;
+    }
+
     setChecked(true);
-  }, [pathname, isAuthenticated, checkSession, router]);
+  }, [pathname, isAuthenticated, checkSession, router, session]);
 
   if (!checked || pathname === '/login') {
     return <>{children}</>;
