@@ -474,7 +474,6 @@ export default function RevenuePage() {
           withdrawalsService.getAdminWithdrawals().then(setRecentWithdrawals).catch(() => {});
         }}
       />
-      </div>
     </PageTransition>
   );
 }
