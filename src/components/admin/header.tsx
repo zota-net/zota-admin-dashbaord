@@ -22,6 +22,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAdminStore, useAppStore } from '@/lib/store/admin-store';
 import { GlobalSearch } from '@/components/global-search';
+import { NotificationsPanel } from '@/components/admin/notifications-panel';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -117,10 +118,7 @@ export function AdminHeader() {
               Search
             </Button>
 
-            <Button variant="ghost" size="icon" className="relative h-9 w-9">
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive" />
-            </Button>
+            <NotificationsPanel />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

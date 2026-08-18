@@ -1,12 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,31 +17,42 @@ import {
   Plus,
   Trash2,
   Edit,
+  Loader2,
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-
-interface Admin {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  createdAt: string;
-}
+import { adminsService } from '@/lib/api';
+import { useAdminStore } from '@/lib/store/admin-store';
+import type { AdminUser } from '@/lib/api/types';
+import { AddAdminDialog } from '@/components/admin/dialogs/add-admin-dialog';
+import { RoleChangeDialog } from '@/components/admin/dialogs/role-change-dialog';
+import { RemoveAdminDialog } from '@/components/admin/dialogs/remove-admin-dialog';
 
 export default function SettingsPage() {
-  const [admins, setAdmins] = useState<Admin[]>([
-    { id: '1', name: 'Super Admin', email: 'admin@zota.com', role: 'SuperAdmin', createdAt: '2024-01-01' },
-    { id: '2', name: 'Support Agent', email: 'support@zota.com', role: 'Admin', createdAt: '2024-01-15' },
-  ]);
+  const { session } = useAdminStore();
+  const isSuperAdmin = session?.admin?.role === 'SuperAdmin';
+
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(true);
+
   const [showAddAdmin, setShowAddAdmin] = useState(false);
-  const [newAdminRole, setNewAdminRole] = useState('Admin');
+  const [showRoleChange, setShowRoleChange] = useState(false);
+  const [showRemoveAdmin, setShowRemoveAdmin] = useState(false);
+  const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null);
+
+  const fetchAdmins = useCallback(async () => {
+    setIsLoadingAdmins(true);
+    try {
+      const data = await adminsService.getAll();
+      setAdmins(data);
+    } catch {
+      // silent
+    } finally {
+      setIsLoadingAdmins(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAdmins();
+  }, [fetchAdmins]);
 
   return (
     <div className="space-y-6">
@@ -74,11 +84,11 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="fullname">Full Name</Label>
-                  <Input id="fullname" defaultValue="Super Admin" />
+                  <Input id="fullname" defaultValue={session?.admin?.fullname || ''} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="admin@zota.com" />
+                  <Input id="email" type="email" defaultValue={session?.admin?.email || ''} />
                 </div>
               </div>
               <div className="flex justify-end">
@@ -158,90 +168,92 @@ export default function SettingsPage() {
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Admin Users
+                {!isLoadingAdmins && (
+                  <Badge variant="secondary" className="ml-2">{admins.length}</Badge>
+                )}
               </CardTitle>
-              <Dialog open={showAddAdmin} onOpenChange={setShowAddAdmin}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Admin
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Admin</DialogTitle>
-                    <DialogDescription>
-                      Create a new administrator account with specific roles
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="newAdminName">Name</Label>
-                      <Input id="newAdminName" placeholder="Admin name" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="newAdminEmail">Email</Label>
-                      <Input id="newAdminEmail" type="email" placeholder="admin@zota.com" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Role</Label>
-                      <Select value={newAdminRole} onValueChange={setNewAdminRole}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Admin">Admin</SelectItem>
-                          <SelectItem value="SuperAdmin">SuperAdmin</SelectItem>
-                          <SelectItem value="Support">Support</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-end gap-2 mt-4">
-                      <Button variant="outline" onClick={() => setShowAddAdmin(false)}>Cancel</Button>
-                      <Button onClick={() => setShowAddAdmin(false)}>Create Admin</Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              {isSuperAdmin && (
+                <Button size="sm" onClick={() => setShowAddAdmin(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Admin
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="w-[80px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {admins.map((admin) => (
-                    <TableRow key={admin.id}>
-                      <TableCell className="font-medium">{admin.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{admin.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={admin.role === 'SuperAdmin' ? 'default' : 'secondary'}>
-                          {admin.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setAdmins(prev => prev.filter(a => a.id !== admin.id))}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              {isLoadingAdmins ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : admins.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  No admin users found.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Joined</TableHead>
+                      {isSuperAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {admins.map((admin) => (
+                      <TableRow key={admin.id}>
+                        <TableCell className="font-medium">
+                          {admin.fullname}
+                          {admin.id === Number(session?.admin?.id) && (
+                            <Badge variant="outline" className="ml-2 text-[10px]">You</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{admin.email}</TableCell>
+                        <TableCell className="text-muted-foreground">{admin.phone || '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant={admin.role === 'SuperAdmin' ? 'default' : 'secondary'}>
+                            {admin.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString() : '—'}
+                        </TableCell>
+                        {isSuperAdmin && (
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  setSelectedAdmin(admin);
+                                  setShowRoleChange(true);
+                                }}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              {admin.id !== Number(session?.admin?.id) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => {
+                                    setSelectedAdmin(admin);
+                                    setShowRemoveAdmin(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -281,6 +293,34 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialogs */}
+      <AddAdminDialog
+        open={showAddAdmin}
+        onOpenChange={setShowAddAdmin}
+        onAdminAdded={fetchAdmins}
+      />
+
+      {selectedAdmin && (
+        <>
+          <RoleChangeDialog
+            open={showRoleChange}
+            onOpenChange={setShowRoleChange}
+            adminId={selectedAdmin.id}
+            adminName={selectedAdmin.fullname}
+            currentRole={selectedAdmin.role}
+            onRoleChanged={fetchAdmins}
+          />
+          <RemoveAdminDialog
+            open={showRemoveAdmin}
+            onOpenChange={setShowRemoveAdmin}
+            adminId={selectedAdmin.id}
+            adminName={selectedAdmin.fullname}
+            adminEmail={selectedAdmin.email}
+            onAdminRemoved={fetchAdmins}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Client, ClientReport } from '@/lib/api/types';
+import type { Client, ClientReport, AdminNotification } from '@/lib/api/types';
 
 interface AdminSession {
   token: string;
@@ -19,6 +19,7 @@ interface AdminState {
   login: (session: AdminSession) => void;
   logout: () => void;
   checkSession: () => boolean;
+  isSuperAdmin: () => boolean;
 }
 
 interface AppState {
@@ -30,12 +31,16 @@ interface AppState {
   isLoading: boolean;
   selectedClient: Client | null;
   clientReport: ClientReport | null;
+  notifications: AdminNotification[];
+  unreadCount: number;
 
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setLoading: (loading: boolean) => void;
   setSelectedClient: (client: Client | null) => void;
   setClientReport: (report: ClientReport | null) => void;
+  setNotifications: (notifications: AdminNotification[]) => void;
+  setUnreadCount: (count: number) => void;
 }
 
 export const useAdminStore = create<AdminState>()(
@@ -51,8 +56,12 @@ export const useAdminStore = create<AdminState>()(
       checkSession: () => {
         const { session } = get();
         if (!session?.token) return false;
-        // Add token expiry check if needed
         return true;
+      },
+
+      isSuperAdmin: () => {
+        const { session } = get();
+        return session?.admin?.role === 'SuperAdmin';
       },
     }),
     {
@@ -71,6 +80,8 @@ export const useAppStore = create<AppState>()(
       isLoading: false,
       selectedClient: null,
       clientReport: null,
+      notifications: [],
+      unreadCount: 0,
 
       toggleSidebar: () =>
         set((state) => ({
@@ -87,6 +98,8 @@ export const useAppStore = create<AppState>()(
       setLoading: (loading) => set({ isLoading: loading }),
       setSelectedClient: (client) => set({ selectedClient: client }),
       setClientReport: (report) => set({ clientReport: report }),
+      setNotifications: (notifications) => set({ notifications }),
+      setUnreadCount: (count) => set({ unreadCount: count }),
     }),
     {
       name: 'zota-admin-app',

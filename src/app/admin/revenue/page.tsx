@@ -31,9 +31,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
-import { clientsService, reportsService } from '@/lib/api';
-import type { VoucherSale } from '@/lib/api/types';
+import { clientsService, reportsService, walletsService, withdrawalsService } from '@/lib/api';
+import type { VoucherSale, AdminWithdrawal } from '@/lib/api/types';
 import { format, subDays, parseISO } from 'date-fns';
+import { WithdrawAdminFundsDialog } from '@/components/admin/dialogs/withdraw-admin-funds-dialog';
 
 type TimeRange = '7d' | '30d' | '90d' | '12m';
 
@@ -56,8 +57,10 @@ export default function RevenuePage() {
     averageTransaction: 0,
     growth: 0,
   });
-  const [recentWithdrawals, setRecentWithdrawals] = useState<any[]>([]);
+  const [recentWithdrawals, setRecentWithdrawals] = useState<AdminWithdrawal[]>([]);
   const [allSales, setAllSales] = useState<VoucherSale[]>([]);
+  const [adminBalance, setAdminBalance] = useState(0);
+  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
 
   useEffect(() => {
     const loadRevenueData = async () => {
@@ -117,6 +120,13 @@ export default function RevenuePage() {
         });
 
         setRecentWithdrawals([]);
+
+        try {
+          const wallet = await walletsService.getAdminWallet();
+          setAdminBalance(wallet.balance ?? 0);
+          const wData = await withdrawalsService.getAdminWithdrawals();
+          setRecentWithdrawals(wData);
+        } catch { /* not critical */ }
       } catch (err) {
         console.error('Failed to load revenue data:', err);
       } finally {
@@ -403,7 +413,7 @@ export default function RevenuePage() {
               <Wallet className="h-5 w-5" />
               Withdrawals & Disbursements
             </CardTitle>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setShowWithdrawDialog(true)}>
               <Download className="h-4 w-4 mr-2" />
               Request Withdrawal
             </Button>
@@ -420,21 +430,25 @@ export default function RevenuePage() {
                     <tr className="bg-muted/40">
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">Amount</th>
-                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Method</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Phone</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Provider</th>
                       <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {recentWithdrawals.map((withdrawal, index) => (
-                      <tr key={index} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 text-muted-foreground">{withdrawal.date}</td>
+                    {recentWithdrawals.map((withdrawal) => (
+                      <tr key={withdrawal.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {withdrawal.createdAt ? format(parseISO(withdrawal.createdAt), 'MMM dd, yyyy HH:mm') : '—'}
+                        </td>
                         <td className="px-4 py-3 font-medium">{formatCurrency(withdrawal.amount)}</td>
-                        <td className="px-4 py-3">{withdrawal.method}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{withdrawal.phone}</td>
+                        <td className="px-4 py-3">{withdrawal.provider}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            withdrawal.status === 'completed'
+                            withdrawal.status === 'Completed'
                               ? 'bg-emerald-500/10 text-emerald-600'
-                              : withdrawal.status === 'pending'
+                              : withdrawal.status === 'Pending'
                               ? 'bg-yellow-500/10 text-yellow-600'
                               : 'bg-destructive/10 text-destructive'
                           }`}>
@@ -449,6 +463,17 @@ export default function RevenuePage() {
             )}
           </CardContent>
         </Card>
+      </div>
+
+      <WithdrawAdminFundsDialog
+        open={showWithdrawDialog}
+        onOpenChange={setShowWithdrawDialog}
+        currentBalance={adminBalance}
+        onWithdrawalSuccess={(newBalance) => {
+          setAdminBalance(newBalance);
+          withdrawalsService.getAdminWithdrawals().then(setRecentWithdrawals).catch(() => {});
+        }}
+      />
       </div>
     </PageTransition>
   );

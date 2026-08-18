@@ -505,6 +505,58 @@ export interface SmsTopupRequest {
   provider: 'MTN_UGANDA' | 'AIRTEL_UGANDA';
 }
 
+// ─── Admin Management Types ───────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: number;
+  fullname: string;
+  email: string;
+  phone?: string;
+  role: 'Admin' | 'SuperAdmin';
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+export interface AddAdminRequest {
+  fullname: string;
+  email: string;
+  password: string;
+  phone?: string;
+}
+
+export interface UpdateRoleRequest {
+  role: 'Admin' | 'SuperAdmin';
+}
+
+export interface AdminNotification {
+  id: number;
+  recipientId: number;
+  type: string;
+  title: string;
+  message: string;
+  metadata?: Record<string, any>;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface AdminWithdrawalRequest {
+  amount: number;
+  phone: string;
+  provider: 'MTN' | 'Airtel';
+}
+
+export interface AdminWithdrawal {
+  id: number;
+  wallet_id: number;
+  amount: number;
+  phone: string;
+  provider: 'MTN' | 'Airtel';
+  status: string;
+  transactionId?: string;
+  failureReason?: string;
+  createdAt: string;
+}
+
 // ─── Support Ticket Types ─────────────────────────────────────────────────────
 
 export interface TicketMessage {

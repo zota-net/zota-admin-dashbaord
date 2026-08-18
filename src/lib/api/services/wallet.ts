@@ -6,6 +6,8 @@ import type {
   Transaction,
   Withdrawal,
   InitiateWithdrawalRequest,
+  AdminWithdrawalRequest,
+  AdminWithdrawal,
   VoucherSale,
   AgentAccount,
   CreateAgentAccountRequest,
@@ -122,6 +124,15 @@ export const withdrawalsService = {
 
   updateStatus: (id: string, status: 'approved' | 'rejected') =>
     api.put<ApiResponse>(`/wallet/withdrawals/${id}/status`, { status }),
+
+  initiateAdminWithdrawal: (data: AdminWithdrawalRequest) =>
+    api.post<ApiResponse<{ withdrawalId: number; status: string; amount: number; phone: string; provider: string; newBalance: number }>>('/wallet/withdrawals/admin', data).then((r) => r.data ?? r as unknown as { newBalance: number }),
+
+  getAdminWithdrawals: () =>
+    api.get<ApiResponse<AdminWithdrawal[]>>('/wallet/withdrawals/admin').then((r) => {
+      const data = r.data ?? r;
+      return Array.isArray(data) ? data as AdminWithdrawal[] : [];
+    }),
 };
 
 // ─── Purchases ───────────────────────────────────────────────────────────────
