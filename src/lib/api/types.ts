@@ -546,11 +546,6 @@ export interface AdminWithdrawalRequest {
   provider: 'MTN' | 'Airtel';
 }
 
-export interface UpdateAdminBalanceRequest {
-  amount: number;
-  description?: string;
-}
-
 export interface AdminWithdrawal {
   id: number;
   wallet_id: number;

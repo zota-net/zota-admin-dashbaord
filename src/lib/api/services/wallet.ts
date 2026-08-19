@@ -7,7 +7,6 @@ import type {
   Withdrawal,
   InitiateWithdrawalRequest,
   AdminWithdrawalRequest,
-  UpdateAdminBalanceRequest,
   AdminWithdrawal,
   VoucherSale,
   AgentAccount,
@@ -134,9 +133,6 @@ export const withdrawalsService = {
       const data = r.data ?? r;
       return Array.isArray(data) ? data as AdminWithdrawal[] : [];
     }),
-
-  updateAdminBalance: (data: UpdateAdminBalanceRequest) =>
-    api.put<ApiResponse<{ previousBalance: number; newBalance: number; change: number; description: string }>>('/wallet/admin-wallet/balance', data).then((r) => r.data ?? r as unknown as { previousBalance: number; newBalance: number; change: number; description: string }),
 };
 
 // ─── Purchases ───────────────────────────────────────────────────────────────

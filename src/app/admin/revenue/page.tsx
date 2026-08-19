@@ -35,7 +35,6 @@ import { clientsService, reportsService, walletsService, withdrawalsService } fr
 import type { VoucherSale, AdminWithdrawal } from '@/lib/api/types';
 import { format, subDays, parseISO } from 'date-fns';
 import { WithdrawAdminFundsDialog } from '@/components/admin/dialogs/withdraw-admin-funds-dialog';
-import { UpdateAdminBalanceDialog } from '@/components/admin/dialogs/update-admin-balance-dialog';
 
 type TimeRange = '7d' | '30d' | '90d' | '12m';
 
@@ -62,7 +61,6 @@ export default function RevenuePage() {
   const [allSales, setAllSales] = useState<VoucherSale[]>([]);
   const [adminBalance, setAdminBalance] = useState(0);
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
-  const [showBalanceDialog, setShowBalanceDialog] = useState(false);
 
   useEffect(() => {
     const loadRevenueData = async () => {
@@ -415,15 +413,10 @@ export default function RevenuePage() {
               <Wallet className="h-5 w-5" />
               Withdrawals & Disbursements
             </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setShowBalanceDialog(true)}>
-                Update Balance
-              </Button>
-              <Button size="sm" onClick={() => setShowWithdrawDialog(true)}>
-                <Download className="h-4 w-4 mr-2" />
-                Request Withdrawal
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => setShowWithdrawDialog(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Request Withdrawal
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
             {recentWithdrawals.length === 0 ? (
@@ -479,15 +472,6 @@ export default function RevenuePage() {
         onWithdrawalSuccess={(newBalance) => {
           setAdminBalance(newBalance);
           withdrawalsService.getAdminWithdrawals().then(setRecentWithdrawals).catch(() => {});
-        }}
-      />
-
-      <UpdateAdminBalanceDialog
-        open={showBalanceDialog}
-        onOpenChange={setShowBalanceDialog}
-        currentBalance={adminBalance}
-        onBalanceUpdated={(newBalance) => {
-          setAdminBalance(newBalance);
         }}
       />
     </PageTransition>
