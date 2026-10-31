@@ -17,18 +17,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { PageHeader, DataTable, ErrorState, EmptyState, StatsCard, CardSkeleton, type Column } from '@/components/admin';
+import { PageHeader, DataTable, ErrorState, StatsCard, CardSkeleton, type Column } from '@/components/admin';
 import { clientsService, bopDevicesService, walletsService, reportsService } from '@/lib/api';
 import type {
   Client,
