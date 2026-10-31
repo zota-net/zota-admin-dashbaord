@@ -1,39 +1,68 @@
 'use client';
 
-import { Building } from 'lucide-react';
+import { useThemeStore } from '@/lib/store/theme-store';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
+import { Activity } from 'lucide-react';
 
 interface LogoProps {
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   showText?: boolean;
+  variant?: 'full' | 'icon';
 }
 
-const sizeClasses = {
-  sm: 'h-6 w-6',
-  md: 'h-8 w-8',
-  lg: 'h-12 w-12',
+const sizeMap = {
+  sm: { icon: 24, text: 'text-lg' },
+  md: { icon: 32, text: 'text-xl' },
+  lg: { icon: 40, text: 'text-2xl' },
+  xl: { icon: 48, text: 'text-3xl' },
 };
 
-const textSizes = {
-  sm: 'text-sm',
-  md: 'text-lg',
-  lg: 'text-2xl',
-};
+export function Logo({ 
+  className, 
+  size = 'md', 
+  showText = true,
+  variant = 'full'
+}: LogoProps) {
+  const { branding, resolvedMode } = useThemeStore();
+  const { icon: iconSize, text: textSize } = sizeMap[size];
+  
+  // Determine which logo to use
+  const logoUrl = resolvedMode === 'dark' 
+    ? (branding.logoDarkUrl || branding.logoUrl)
+    : (branding.logoLightUrl || branding.logoUrl);
 
-export function Logo({ className, size = 'md', showText = true }: LogoProps) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <div
-        className={cn(
-          'rounded-lg bg-primary flex items-center justify-center',
-          sizeClasses[size]
-        )}
-      >
-        <Building className={cn('text-primary-foreground', size === 'sm' ? 'h-3 w-3' : size === 'md' ? 'h-4 w-4' : 'h-6 w-6')} />
-      </div>
-      {showText && (
-        <span className={cn('font-bold', textSizes[size])}>ZOTA</span>
+      {logoUrl ? (
+        <Image
+          src={logoUrl}
+          alt={branding.companyName}
+          width={iconSize}
+          height={iconSize}
+          className="object-contain"
+        />
+      ) : (
+        <div 
+          className="relative flex items-center justify-center rounded-lg bg-primary/10 p-1"
+          style={{ width: iconSize + 8, height: iconSize + 8 }}
+        >
+          <Activity 
+            className="text-primary" 
+            style={{ width: iconSize * 0.7, height: iconSize * 0.7 }}
+          />
+          <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+          </span>
+        </div>
+      )}
+      
+      {showText && variant === 'full' && (
+        <span className={cn('font-bold tracking-tight', textSize)}>
+          {branding.companyName}
+        </span>
       )}
     </div>
   );

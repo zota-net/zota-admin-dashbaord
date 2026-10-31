@@ -20,6 +20,24 @@ export const routersService = {
   runScript: (routerId: string, source: string, scriptName?: string) =>
     api.post<ApiResponse<{ output?: string; success: boolean }>>(`/mikrotik/routers/${routerId}/scripts/run`, { source, scriptName }),
 
+  getStatus: (routerId: string) =>
+    api.get<ApiResponse<import('../types').RouterStatus>>(`/mikrotik/routers/${routerId}/status`).then((r) => r.data),
+
+  getSystemStats: (routerId: string) =>
+    api.get<ApiResponse<import('../types').RouterSystemStats>>(`/mikrotik/routers/${routerId}/stats/system`).then((r) => r.data),
+
+  getActiveSessions: (routerId: string) =>
+    api.get<ApiResponse<import('../types').RouterSession[]>>(`/mikrotik/routers/${routerId}/sessions`).then((r) => {
+      const data = r.data ?? r;
+      return Array.isArray(data) ? (data as import('../types').RouterSession[]) : [];
+    }),
+
+  kickSessionByMac: (routerId: string, mac: string) =>
+    api.delete<ApiResponse>(`/mikrotik/routers/${routerId}/sessions/mac/${mac}`),
+
+  kickSessionByUser: (routerId: string, username: string) =>
+    api.delete<ApiResponse>(`/mikrotik/routers/${routerId}/sessions/user/${username}`),
+
   getAll: () =>
     api.get<ApiResponse<import('../types').Router[]>>('/mikrotik/routers').then((r) => (r.data ?? r) as import('../types').Router[]),
 };

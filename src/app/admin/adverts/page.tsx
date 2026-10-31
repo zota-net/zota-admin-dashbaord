@@ -1,172 +1,245 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Search, RefreshCw, Image as ImageIcon, Video, Trash2, Calendar } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { clientsService, advertsService } from '@/lib/api';
-import type { Client, Advert } from '@/lib/api/types';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Megaphone, Eye, Trash2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PageHeader, DataTable, type Column } from '@/components/admin';
+import { advertsService, clientsService } from '@/lib/api';
+import type { Advert } from '@/lib/api/types';
+import { useAsync } from '@/lib/use-async';
+import { formatDate, formatDateTime, statusVariant } from '@/lib/format';
+import { cn } from '@/lib/utils';
 
-type TaggedAdvert = Advert & { clientName: string };
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost';
-
-function resolveMediaUrl(media: string) {
-  if (!media) return '';
-  if (media.startsWith('http://') || media.startsWith('https://')) return media;
-  return `${API_BASE_URL}/bop${media}`;
+interface Row extends Advert {
+  clientName: string;
+  status?: string;
 }
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString();
-
-export default function AdminAdvertsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [adverts, setAdverts] = useState<TaggedAdvert[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function AdvertsPage() {
   const [clientFilter, setClientFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [preview, setPreview] = useState<Row | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  const data = useAsync<Row[]>(async () => {
+    const list = await clientsService.getAll();
+    const settled = await Promise.allSettled(
+      list.map((c) =>
+        advertsService.getByClient(c.id).then((ads) => ads.map((a) => ({ ...a, clientName: c.businessName })))
+      )
+    );
+    return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+  }, []);
+
+  const rows = useMemo(() => {
+    const all = data.data ?? [];
+    return clientFilter === 'all' ? all : all.filter((r) => String(r.client_id) === clientFilter);
+  }, [data.data, clientFilter]);
+
+  const setStatus = async (id: string, status: 'active' | 'inactive') => {
     try {
-      const clientList = await clientsService.getAll();
-      setClients(clientList);
-      const all = await Promise.allSettled(
-        clientList.map(c => advertsService.getByClient(c.id).then(ads => ads.map(a => ({ ...a, clientName: c.businessName }))))
-      ).then(rs => rs.flatMap(r => r.status === 'fulfilled' ? r.value : []));
-      setAdverts(all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch { toast.error('Failed to load adverts'); }
-    finally { setLoading(false); }
+      await advertsService.updateStatus(id, status);
+      toast.success(`Advert set to ${status}`);
+      data.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update advert');
+    }
   };
 
-  useEffect(() => { load(); }, []);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this advert?')) return;
-    try { await advertsService.delete(id); toast.success('Advert deleted'); load(); }
-    catch { toast.error('Failed to delete advert'); }
+  const remove = async (id: string) => {
+    try {
+      await advertsService.delete(id);
+      toast.success('Advert deleted');
+      data.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete advert');
+    }
   };
 
-  const handleToggleStatus = async (id: string, current: string) => {
-    const next = current === 'active' ? 'inactive' : 'active';
-    try { await advertsService.updateStatus(id, next as 'active' | 'inactive' | 'pending'); toast.success(`Advert ${next}`); load(); }
-    catch { toast.error('Failed to update advert status'); }
-  };
+  const columns: Column<Row>[] = [
+    {
+      key: 'mediaType',
+      header: '',
+      className: 'w-14',
+      render: (r) => (
+        <button onClick={() => setPreview(r)} className="flex h-9 w-12 items-center justify-center rounded-md bg-muted/60 border border-border/60 hover:border-primary/50 transition-colors">
+          {r.mediaType === 'video' ? <PlayIcon /> : <PreviewImage src={r.media} />}
+        </button>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Description',
+      sortValue: (r) => r.description,
+      render: (r) => (
+        <div className="min-w-0 max-w-[300px]">
+          <p className="truncate font-medium">{r.description || 'Untitled advert'}</p>
+          <p className="text-xs text-muted-foreground truncate">{r.clientName}</p>
+        </div>
+      ),
+    },
+    { key: 'duration', header: 'Duration', hideOnMobile: true, sortValue: (r) => r.duration, render: (r) => <span>{r.duration}s</span> },
+    { key: 'endsIn', header: 'Ends', hideOnMobile: true, render: (r) => <span className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="h-3 w-3" />{formatDate(r.endsIn)}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      sortValue: (r) => r.status ?? 'unknown',
+      render: (r) => <Badge variant={statusVariant(r.status ?? 'unknown')} className="text-[10px]">{r.status ?? '—'}</Badge>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-24 text-right',
+      render: (r) => {
+        const st = r.status;
+        return (
+          <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+            {st === 'active' ? (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-500" title="Deactivate" onClick={() => setStatus(r.id, 'inactive')}>
+                <XCircle className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-500" title="Approve / activate" onClick={() => setStatus(r.id, 'active')}>
+                <CheckCircle2 className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" title="Delete" onClick={() => remove(r.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
-  const isExpired = (a: Advert) => new Date(a.endsIn) < new Date();
-
-  const filtered = adverts.filter(a =>
-    (clientFilter === 'all' || a.client_id === clientFilter) &&
-    (!search || a.description.toLowerCase().includes(search.toLowerCase()) || a.clientName.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const stats = {
-    total: adverts.length,
-    active: adverts.filter(a => !isExpired(a)).length,
-    expired: adverts.filter(isExpired).length,
-    clients: new Set(adverts.map(a => a.client_id)).size,
-  };
+  const clients = useMemo(() => {
+    const map = new Map<string, string>();
+    (data.data ?? []).forEach((r) => map.set(String(r.client_id), r.clientName));
+    return map;
+  }, [data.data]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Adverts</h1>
-          <p className="text-muted-foreground mt-1">All advertisements across all clients</p>
-        </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Refresh
-        </Button>
-      </div>
+    <>
+      <PageHeader title="Adverts" description="Hotspot advertisements uploaded by clients — moderate and control" />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Total Adverts', value: stats.total },
-          { label: 'Active', value: stats.active },
-          { label: 'Expired', value: stats.expired },
-          { label: 'Client Campaigns', value: stats.clients },
-        ].map(s => (
-          <Card key={s.label}><CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">{s.label}</p>
-            <p className="text-2xl font-bold">{s.value}</p>
-          </CardContent></Card>
-        ))}
-      </div>
+      <DataTable
+        columns={columns}
+        rows={data.data ? rows : null}
+        rowKey={(r) => `${r.client_id}-${r.id}`}
+        isLoading={data.isLoading}
+        error={data.error}
+        onRetry={data.refresh}
+        searchPlaceholder="Search adverts..."
+        searchFn={(r, q) => r.description.toLowerCase().includes(q) || r.clientName.toLowerCase().includes(q)}
+        emptyMessage="No adverts on the platform"
+        toolbar={
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-44 h-9">
+              <SelectValue placeholder="Client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All clients</SelectItem>
+              {Array.from(clients.entries()).map(([id, name]) => (
+                <SelectItem key={id} value={id}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search adverts…" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="All clients" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
-            {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.businessName}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      <Dialog open={!!preview} onOpenChange={() => setPreview(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-primary" />
+              {preview?.description || 'Advert preview'}
+            </DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-3">
+              <MediaView advert={preview} large />
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <Info label="Client" value={preview.clientName} />
+                <Info label="Duration" value={`${preview.duration}s`} />
+                <Info label="Ends" value={formatDateTime(preview.endsIn)} />
+                <Info label="Created" value={formatDateTime(preview.createdAt)} />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
-      {loading ? (
-        <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2"><ImageIcon className="w-8 h-8" /><p>No adverts found</p></div>
-      ) : (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(advert => {
-            const expired = isExpired(advert);
-            return (
-              <Card key={advert.id} className={expired ? 'opacity-60' : ''}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-sm font-semibold line-clamp-2">{advert.description}</CardTitle>
-                      <p className="text-xs text-muted-foreground mt-1">{advert.clientName}</p>
-                    </div>
-                    <div className="flex gap-1 shrink-0">
-                      <Badge variant={expired ? 'secondary' : 'default'} className="text-xs">{expired ? 'Expired' : 'Active'}</Badge>
-                      {advert.mediaType && (
-                        <Badge variant="outline" className="text-xs gap-1">
-                          {advert.mediaType === 'video' ? <Video className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
-                          {advert.mediaType}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {advert.media && (
-                    <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                      {advert.mediaType === 'video' ? (
-                        <video src={resolveMediaUrl(advert.media)} className="w-full h-full object-cover" muted loop playsInline
-                          onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
-                          onMouseLeave={e => (e.currentTarget as HTMLVideoElement).pause()} />
-                      ) : (
-                        <img src={resolveMediaUrl(advert.media)} alt={advert.description} className="w-full h-full object-cover" />
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Expires {fmtDate(advert.endsIn)}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={() => handleToggleStatus(advert.id, expired ? 'inactive' : 'active')}>
-                      {expired ? 'Reactivate' : 'Deactivate'}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDelete(advert.id)}>
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-muted/40 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-medium truncate">{value}</p>
     </div>
   );
+}
+
+function MediaView({ advert, large }: { advert: Advert; large?: boolean }) {
+  const url = resolveMediaUrl(advert.media);
+  if (!url) return <div className={cn('flex items-center justify-center rounded-lg bg-muted/50 text-muted-foreground text-xs', large ? 'h-64' : 'h-9 w-12')}>No media</div>;
+  if (advert.mediaType === 'video') {
+    return (
+      <video
+        src={url}
+        controls={large}
+        muted={!large}
+        loop
+        className={cn('rounded-lg object-contain bg-black', large ? 'max-h-[420px] w-full' : 'h-9 w-12')}
+      />
+    );
+  }
+  return <PreviewImage src={url} large={large} />;
+}
+
+function PreviewImage({ src, large }: { src: string; large?: boolean }) {
+  const url = src.startsWith('http') ? src : src;
+  if (!url || url === 'null' || url === 'undefined') {
+    return <div className={cn('flex items-center justify-center rounded-lg bg-muted/50', large ? 'h-64' : 'h-9 w-12')}><Eye className="h-4 w-4 text-muted-foreground" /></div>;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt="Advert media"
+      className={cn('rounded-lg object-cover', large ? 'max-h-[420px] w-full object-contain bg-black' : 'h-9 w-12')}
+      onError={(e) => {
+        (e.target as HTMLImageElement).style.display = 'none';
+      }}
+    />
+  );
+}
+
+function PlayIcon() {
+  return (
+    <div className="flex h-9 w-12 items-center justify-center rounded-md bg-black/80">
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white"><path d="M8 5v14l11-7z" /></svg>
+    </div>
+  );
+}
+
+function resolveMediaUrl(media: string): string | null {
+  if (!media || media === 'null' || media === 'undefined') return null;
+  if (media.startsWith('http')) return media;
+  if (media.startsWith('/uploads')) return `${process.env.NEXT_PUBLIC_API_BASE_URL ?? ''}${media}`;
+  return media;
 }

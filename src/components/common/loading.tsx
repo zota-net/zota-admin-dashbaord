@@ -51,9 +51,74 @@ export function LoadingOverlay({ show, text = 'Loading...' }: LoadingOverlayProp
   );
 }
 
+interface NetworkLoaderProps {
+  className?: string;
+}
+
+export function NetworkLoader({ className }: NetworkLoaderProps) {
+  return (
+    <div className={cn('flex items-center justify-center', className)}>
+      <div className="relative">
+        {/* Center node */}
+        <motion.div
+          className="w-4 h-4 bg-primary rounded-full"
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
+        
+        {/* Orbiting nodes */}
+        {[0, 1, 2, 3].map((i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-primary/60 rounded-full"
+            style={{
+              top: '50%',
+              left: '50%',
+              marginTop: -4,
+              marginLeft: -4,
+            }}
+            animate={{
+              x: [0, Math.cos((i * Math.PI) / 2) * 24, 0],
+              y: [0, Math.sin((i * Math.PI) / 2) * 24, 0],
+              opacity: [0.3, 1, 0.3],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              delay: i * 0.25,
+            }}
+          />
+        ))}
+        
+        {/* Connection lines */}
+        {[0, 1, 2, 3].map((i) => (
+          <motion.div
+            key={`line-${i}`}
+            className="absolute w-6 h-0.5 bg-gradient-to-r from-primary to-transparent origin-left"
+            style={{
+              top: '50%',
+              left: '50%',
+              marginTop: -1,
+              rotate: `${i * 90}deg`,
+            }}
+            animate={{ opacity: [0.2, 0.8, 0.2] }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              delay: i * 0.2,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Page loading skeleton
 export function PageSkeleton() {
   return (
     <div className="flex flex-col gap-6 p-6 animate-pulse">
+      {/* Header skeleton */}
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <div className="h-8 w-48 bg-muted rounded" />
@@ -61,11 +126,15 @@ export function PageSkeleton() {
         </div>
         <div className="h-10 w-32 bg-muted rounded" />
       </div>
+      
+      {/* Stats skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="h-32 bg-muted rounded-lg" />
         ))}
       </div>
+      
+      {/* Content skeleton */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 h-96 bg-muted rounded-lg" />
         <div className="h-96 bg-muted rounded-lg" />

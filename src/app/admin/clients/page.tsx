@@ -1,35 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
-import {
-  Users,
-  Search,
-  Download,
-  Filter,
-  ChevronRight,
-  MoreHorizontal,
-  Mail,
-  Phone,
-  Calendar,
-  Building,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertCircle,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Eye, MoreHorizontal, PauseCircle, PlayCircle, Ban, UserPlus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,380 +14,242 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
-import { clientsService, reportsService } from '@/lib/api';
-import type { Client, ClientReport } from '@/lib/api/types';
-import { format, parseISO } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { PageHeader, DataTable, type Column } from '@/components/admin';
+import { clientsService, adminStatsService, type ClientOverview } from '@/lib/api';
+import { useAsync } from '@/lib/use-async';
+import { formatMoney, formatNumber, formatDate, statusVariant } from '@/lib/format';
 
-// Simple toast replacement
-const toast = {
-  success: (msg: string) => console.log(msg),
-  error: (msg: string) => console.error(msg),
-};
+type StatusAction = { label: string; status: 'Active' | 'Suspended' | 'InActive'; icon: React.ComponentType<{ className?: string }> };
 
-const statusConfig = {
-  Active: {
-    label: 'Active',
-    color: 'bg-green-500/10 text-green-500 border-green-500/20',
-    icon: CheckCircle,
-  },
-  Pending: {
-    label: 'Pending',
-    color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-    icon: Clock,
-  },
-  InActive: {
-    label: 'InActive',
-    color: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
-    icon: AlertCircle,
-  },
-  Suspended: {
-    label: 'Suspended',
-    color: 'bg-red-500/10 text-red-500 border-red-500/20',
-    icon: XCircle,
-  },
-};
+export default function ClientsPage() {
+  const router = useRouter();
+  const overview = useAsync<ClientOverview[]>(() => adminStatsService.getPlatformOverview(), []);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
-export default function UsersPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [clientReport, setClientReport] = useState<ClientReport | null>(null);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const rows = overview.data ?? [];
 
-  useEffect(() => {
-    const loadClients = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await clientsService.getAll();
-        setClients(data);
-      } catch (err) {
-        console.error('Failed to load clients:', err);
-        setError('Failed to load clients');
-        toast.error('Failed to load clients');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadClients();
-  }, []);
-
-  const handleViewDetails = async (client: Client) => {
-    setSelectedClient(client);
-    setDetailsDialogOpen(true);
-
+  const changeStatus = async (id: string, name: string, action: StatusAction) => {
+    setBusy(id);
     try {
-      const reportRaw = await clientsService.getReport(client.id);
-      const report = (reportRaw && 'status' in reportRaw ? (reportRaw as { data?: ClientReport })?.data : reportRaw as ClientReport) ?? null;
-      setClientReport(report);
+      await clientsService.updateStatus(id, action.status);
+      toast.success(`${name} set to ${action.status}`);
+      overview.refresh();
     } catch (err) {
-      console.error('Failed to load client report:', err);
-      setClientReport(null);
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setBusy(null);
     }
   };
 
-  const handleStatusChange = async (clientId: string, newStatus: string) => {
-    try {
-      await clientsService.updateStatus(clientId, newStatus);
-      setClients(clients.map((c) => (c.id === clientId ? { ...c, status: newStatus as Client['status'] } : c)));
-      toast.success(`Client status updated to ${newStatus}`);
-    } catch (err) {
-      console.error('Failed to update client status:', err);
-      toast.error('Failed to update client status');
-    }
+  const actionsFor = (status: string): StatusAction[] => {
+    if (status === 'Active')
+      return [
+        { label: 'Suspend', status: 'Suspended', icon: PauseCircle },
+        { label: 'Ban (deactivate)', status: 'InActive', icon: Ban },
+      ];
+    return [{ label: 'Activate', status: 'Active', icon: PlayCircle }];
   };
 
-  const filteredClients = useMemo(() => {
-    return clients.filter((client) => {
-      const matchesSearch =
-        client.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.adminEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.adminFullName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || client.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [clients, searchQuery, statusFilter]);
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const columns: Column<ClientOverview>[] = [
+    {
+      key: 'businessName',
+      header: 'Client',
+      sortValue: (r) => r.client.businessName,
+      render: (r) => (
+        <div>
+          <p className="font-medium">{r.client.businessName}</p>
+          <p className="text-xs text-muted-foreground">{r.client.adminFullName}</p>
+        </div>
+      ),
+    },
+    { key: 'email', header: 'Email', hideOnMobile: true, sortValue: (r) => r.client.adminEmail, render: (r) => <span className="text-muted-foreground text-sm">{r.client.adminEmail}</span> },
+    {
+      key: 'status',
+      header: 'Status',
+      sortValue: (r) => r.client.status,
+      render: (r) => (
+        <Badge variant={statusVariant(r.client.status)} className="text-[10px]">
+          {r.client.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'balance',
+      header: 'Wallet Balance',
+      sortValue: (r) => r.wallet?.balance ?? 0,
+      render: (r) => <span className="tabular-nums">{formatMoney(r.wallet?.balance ?? 0)}</span>,
+    },
+    {
+      key: 'devices',
+      header: 'Devices',
+      hideOnMobile: true,
+      sortValue: (r) => r.report?.totalDevices ?? 0,
+      render: (r) => <span className="tabular-nums">{formatNumber(r.report?.totalDevices ?? 0)}</span>,
+    },
+    {
+      key: 'sales',
+      header: 'Voucher Sales',
+      hideOnMobile: true,
+      sortValue: (r) => r.sales.length,
+      render: (r) => (
+        <span className="tabular-nums">
+          {formatNumber(r.sales.length)} · {formatMoney(r.sales.reduce((a, v) => a + Number(v.amount ?? 0), 0))}
+        </span>
+      ),
+    },
+    { key: 'createdAt', header: 'Joined', hideOnMobile: true, sortValue: (r) => r.client.createdAt, render: (r) => <span className="text-muted-foreground text-sm">{formatDate(r.client.createdAt)}</span> },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-12 text-right',
+      render: (r) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={busy === r.client.id}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {busy === r.client.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onClick={() => router.push(`/admin/clients/${r.client.id}`)}>
+              <Eye className="mr-2 h-4 w-4" />
+              View details
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {actionsFor(r.client.status).map((a) => (
+              <DropdownMenuItem
+                key={a.status}
+                className={a.status !== 'Active' ? 'text-destructive' : ''}
+                onClick={() => changeStatus(r.client.id, r.client.businessName, a)}
+              >
+                <a.icon className="mr-2 h-4 w-4" />
+                {a.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
 
   return (
-    <PageTransition>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <Users className="h-6 w-6 text-primary" />
-              Clients
-            </h1>
-            <p className="text-muted-foreground">
-              View and manage all clients on the platform
-            </p>
+    <>
+      <PageHeader title="Clients" description="All businesses on the platform — balances, devices and account control">
+        <Button size="sm" onClick={() => setAddOpen(true)}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          New Client
+        </Button>
+      </PageHeader>
+
+      <DataTable
+        columns={columns}
+        rows={overview.data ? rows : null}
+        rowKey={(r) => r.client.id}
+        isLoading={overview.isLoading}
+        error={overview.error}
+        onRetry={overview.refresh}
+        searchFn={(r, q) =>
+          r.client.businessName.toLowerCase().includes(q) ||
+          r.client.adminEmail.toLowerCase().includes(q) ||
+          r.client.adminFullName.toLowerCase().includes(q)
+        }
+        searchPlaceholder="Search clients..."
+        emptyMessage="No clients on the platform yet"
+        onRowClick={(r) => router.push(`/admin/clients/${r.client.id}`)}
+      />
+
+      <AddClientDialog open={addOpen} onOpenChange={setAddOpen} onCreated={() => overview.refresh()} />
+    </>
+  );
+}
+
+function AddClientDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onCreated: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ businessName: '', adminFullName: '', adminEmail: '', adminPassword: '', contact: '' });
+
+  const submit = async () => {
+    if (!form.businessName || !form.adminFullName || !form.adminEmail || !form.adminPassword || !form.contact) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    setSaving(true);
+    try {
+      await clientsService.create(form);
+      toast.success('Client created');
+      setForm({ businessName: '', adminFullName: '', adminEmail: '', adminPassword: '', contact: '' });
+      onOpenChange(false);
+      onCreated();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create client');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Client</DialogTitle>
+          <DialogDescription>Create a new business account on the platform</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Business Name</Label>
+            <Input value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} placeholder="e.g. Sunrise Cyber Cafe" />
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Admin Name</Label>
+              <Input value={form.adminFullName} onChange={(e) => setForm({ ...form, adminFullName: e.target.value })} placeholder="Full name" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Admin Email</Label>
+              <Input type="email" value={form.adminEmail} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="email@example.com" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Password</Label>
+              <Input type="password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder="Initial password" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Contact (phone)</Label>
+              <Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="0770000000" />
+            </div>
           </div>
         </div>
-
-        {/* Filters */}
-        <Card>
-          <CardHeader className="pb-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by business name, email, or admin..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="InActive">InActive</SelectItem>
-                  <SelectItem value="Suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center py-12 text-destructive">
-                <p>{error}</p>
-                <Button variant="outline" onClick={() => window.location.reload()} className="mt-4">
-                  Retry
-                </Button>
-              </div>
-            ) : filteredClients.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                <Users className="h-12 w-12 mb-4 opacity-50" />
-                <p className="text-lg font-medium">No clients found</p>
-                <p className="text-sm">
-                  {searchQuery || statusFilter !== 'all'
-                    ? 'Try adjusting your search or filter'
-                    : 'Clients will appear here once they register'}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Business</TableHead>
-                      <TableHead>Admin</TableHead>
-                      <TableHead className="hidden md:table-cell">Contact</TableHead>
-                      <TableHead>Email Verified</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="hidden lg:table-cell">Onboarding Date</TableHead>
-                      <TableHead className="w-12"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredClients.map((client) => {
-                      const StatusIcon = statusConfig[client.status as keyof typeof statusConfig]?.icon || AlertCircle;
-                      // Mocking isVerified based on status (Active = true, Pending = false)
-                      const isEmailVerified = client.status !== 'Pending';
-                      
-                      return (
-                        <TableRow key={client.id}>
-                          <TableCell>
-                            <Link
-                              href={`/admin/clients/${client.id}`}
-                              className="flex items-center gap-3 hover:text-primary transition-colors"
-                            >
-                              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                <Building className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <p className="font-semibold">{client.businessName}</p>
-                                <p className="text-xs text-muted-foreground">ID: {client.id}</p>
-                              </div>
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{client.adminFullName}</p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                {client.adminEmail}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <p className="flex items-center gap-1 text-sm">
-                              <Phone className="h-3 w-3" />
-                              {client.contact}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={isEmailVerified ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"}>
-                              {isEmailVerified ? 'Verified' : 'Unverified'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={statusConfig[client.status as keyof typeof statusConfig]?.color}
-                            >
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {statusConfig[client.status as keyof typeof statusConfig]?.label || client.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">
-                            {format(parseISO(client.createdAt), 'MMM d, yyyy')}
-                          </TableCell>
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewDetails(client)}>
-                                  <Search className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin/clients/${client.id}`}>
-                                    <ChevronRight className="h-4 w-4 mr-2" />
-                                    View Full Client Detail
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {client.status !== 'Active' && (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'Active')}>
-                                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                                    Activate
-                                  </DropdownMenuItem>
-                                )}
-                                {client.status !== 'Suspended' && (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(client.id, 'Suspended')}>
-                                    <XCircle className="h-4 w-4 mr-2 text-red-500" />
-                                    Suspend
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Client Details Dialog */}
-        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Client Details</DialogTitle>
-              <DialogDescription>
-                {selectedClient?.businessName}
-              </DialogDescription>
-            </DialogHeader>
-            {selectedClient && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Admin Name</p>
-                    <p className="font-medium">{selectedClient.adminFullName}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Status</p>
-                    <Badge
-                      variant="outline"
-                      className={statusConfig[selectedClient.status as keyof typeof statusConfig]?.color}
-                    >
-                      {selectedClient.status}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Email</p>
-                    <p className="font-medium">{selectedClient.adminEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Contact</p>
-                    <p className="font-medium">{selectedClient.contact}</p>
-                  </div>
-                </div>
-                {clientReport && (
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Revenue</p>
-                      <p className="font-medium text-green-500">
-                        {formatCurrency(clientReport.totalRevenue)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Vouchers</p>
-                      <p className="font-medium">{clientReport.totalVouchers}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Active Vouchers</p>
-                      <p className="font-medium">{clientReport.activeVouchers}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Total Devices</p>
-                      <p className="font-medium">{clientReport.totalDevices}</p>
-                    </div>
-                  </div>
-                )}
-                <div className="pt-4 border-t">
-                  <Link href={`/admin/clients/${selectedClient.id}`}>
-                    <Button className="w-full">
-                      <ChevronRight className="h-4 w-4 mr-2" />
-                      View Full Dashboard
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    </PageTransition>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Create Client
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

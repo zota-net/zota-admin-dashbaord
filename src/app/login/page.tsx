@@ -3,152 +3,207 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Loader2, Building, ShieldCheck, Mail } from 'lucide-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+  Lock,
+  MailCheck,
+  ArrowLeft,
+  RefreshCw,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Logo } from '@/components/common';
 import { useAdminStore } from '@/lib/store/admin-store';
 
-const AUTH_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth`;
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(4, 'Password must be at least 4 characters'),
+});
+
+const otpSchema = z.object({
+  otp: z.string().length(6, 'OTP must be 6 digits').regex(/^\d+$/, 'OTP must contain only digits'),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
+type OtpFormData = z.infer<typeof otpSchema>;
+
+interface AdminUserPayload {
+  id: string | number;
+  fullname: string;
+  email: string;
+  role: string;
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const login = useAdminStore((state) => state.login);
-
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
+  const { login } = useAdminStore();
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [otpPending, setOtpPending] = useState(false);
+  const [otpEmail, setOtpEmail] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<LoginFormData | null>(null);
 
-  const handleCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
 
+  const otpForm = useForm<OtpFormData>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { otp: '' },
+  });
+
+  const finalizeLogin = (token: string, user: AdminUserPayload) => {
+    if (user.role !== 'Admin' && user.role !== 'SuperAdmin') {
+      toast.error('This account is not authorized for the admin panel');
+      return false;
+    }
+    login({
+      token,
+      admin: {
+        id: String(user.id),
+        fullname: user.fullname,
+        email: user.email,
+        role: user.role as 'Admin' | 'SuperAdmin',
+      },
+    });
+    toast.success(`Welcome back, ${user.fullname}`);
+    router.push('/admin');
+    return true;
+  };
+
+  const onSubmit = async (data: LoginFormData) => {
+    setIsSubmitting(true);
     try {
-      const res = await fetch(`${AUTH_URL}/login`, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(data),
       });
 
-      const json = await res.json();
+      const body = await res.json();
 
-      // 206 = OTP sent, proceed to OTP step
-      if (json.status === 206 || res.status === 206) {
-        setStep('otp');
+      if (!res.ok) {
+        throw new Error(body.message || 'Authentication failed');
+      }
+
+      setCredentials(data);
+
+      if (body.otpRequired) {
+        setOtpEmail(body.email ?? data.email);
+        setOtpPending(true);
+        otpForm.reset({ otp: '' });
+        toast.info('A 6-digit verification code was sent to your email');
         return;
       }
 
-      if (!res.ok) {
-        throw new Error(json.message || 'Login failed');
-      }
-
-      // Direct login (no OTP) — token at root level
-      const userData = json.data ?? json;
-      if (userData.user.role !== 'SuperAdmin') {
-        throw new Error('Access denied. Only SuperAdmin accounts can access this dashboard.');
-      }
-      login({
-        token: userData.token,
-        admin: {
-          id: userData.user.id,
-          fullname: userData.user.fullname,
-          email: userData.user.email,
-          role: userData.user.role,
-        },
-      });
-      router.push('/admin');
+      finalizeLogin(body.token, body.user);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      toast.error(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
+  const onOtpSubmit = async (data: OtpFormData) => {
+    if (!otpEmail) return;
+    setIsSubmitting(true);
     try {
-      const res = await fetch(`${AUTH_URL}/verify-login-otp`, {
+      const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ email: otpEmail, otp: data.otp }),
       });
 
-      const json = await res.json();
+      const body = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.message || 'OTP verification failed');
+        throw new Error(body.message || 'Verification failed');
       }
 
-      // Response: { status, message, data: { token, user } }
-      const userData = json.data ?? json;
-      if (userData.user.role !== 'SuperAdmin') {
-        throw new Error('Access denied. Only SuperAdmin accounts can access this dashboard.');
+      if (!finalizeLogin(body.token, body.user)) {
+        setOtpPending(false);
+        setOtpEmail(null);
       }
-      login({
-        token: userData.token,
-        admin: {
-          id: userData.user.id,
-          fullname: userData.user.fullname,
-          email: userData.user.email,
-          role: userData.user.role,
-        },
-      });
-      router.push('/admin');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed');
+      toast.error(err instanceof Error ? err.message : 'Verification failed');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const resendOtp = async () => {
+    if (!credentials) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.message || 'Could not resend the code');
+      toast.success(body.otpRequired ? 'New code sent to your email' : 'New code sent');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not resend the code');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const backToCredentials = () => {
+    setOtpPending(false);
+    setOtpEmail(null);
+    setCredentials(null);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,106,0,0.06),transparent_60%)] pointer-events-none" />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-[400px]"
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        className="w-full max-w-[420px] relative"
       >
-        <AnimatePresence mode="wait">
-          {step === 'credentials' ? (
-            <motion.div
-              key="credentials"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-            >
-              <div className="flex flex-col items-center mb-8">
-                <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center mb-4">
-                  <Building className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <h1 className="text-2xl font-semibold tracking-tight">Zota Admin</h1>
-                <p className="text-muted-foreground mt-1">Sign in to your admin dashboard</p>
-              </div>
+        <div className="flex flex-col items-center gap-3 mb-6">
+          <Logo size="lg" />
+          <div className="text-center">
+            <h1 className="text-xl font-bold tracking-tight">Platform Administration</h1>
+            <p className="text-sm text-muted-foreground">
+              {otpPending ? 'Two-factor verification required' : 'Sign in to the ZOTA control panel'}
+            </p>
+          </div>
+        </div>
 
-              <Card className="border-border shadow-sm">
-                <CardContent className="p-6">
-                  <form onSubmit={handleCredentials} className="space-y-5">
+        <AnimatePresence mode="wait">
+          {!otpPending ? (
+            <motion.div key="credentials" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}>
+              <Card className="border-border/60 shadow-sm">
+                <CardContent className="pt-6">
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="admin@zota.com"
+                        placeholder="admin@zota.io"
                         autoComplete="email"
-                        disabled={isLoading}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
+                        {...form.register('email')}
                       />
+                      {form.formState.errors.email && (
+                        <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -157,94 +212,90 @@ export default function AdminLoginPage() {
                         <Input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="Enter your password"
+                          placeholder="••••••••"
                           autoComplete="current-password"
-                          disabled={isLoading}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          required
+                          className="pr-10"
+                          {...form.register('password')}
                         />
-                        <button
+                        <Button
                           type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full w-10 text-muted-foreground"
+                          onClick={() => setShowPassword((v) => !v)}
                         >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
                       </div>
+                      {form.formState.errors.password && (
+                        <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>
+                      )}
                     </div>
 
-                    {error && (
-                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                        {error}
-                      </div>
-                    )}
-
-                    <Button type="submit" disabled={isLoading} className="w-full">
-                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign In'}
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Lock className="h-4 w-4 mr-2" />
+                      )}
+                      Continue
                     </Button>
                   </form>
+
+                  <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    Restricted to Admin & SuperAdmin accounts
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
           ) : (
-            <motion.div
-              key="otp"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-            >
-              <div className="flex flex-col items-center mb-8 text-center">
-                <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <ShieldCheck className="h-7 w-7 text-primary" />
-                </div>
-                <h1 className="text-2xl font-semibold tracking-tight">Verify your login</h1>
-                <p className="text-muted-foreground mt-1">A 6-digit code was sent to</p>
-                <p className="font-medium flex items-center gap-1 mt-1">
-                  <Mail className="w-4 h-4" />
-                  {email}
-                </p>
-              </div>
+            <motion.div key="otp" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}>
+              <Card className="border-border/60 shadow-sm">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center gap-2 mb-5">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                      <MailCheck className="h-6 w-6 text-primary" />
+                    </div>
+                    <p className="text-sm text-center text-muted-foreground">
+                      We sent a 6-digit code to<br />
+                      <span className="font-medium text-foreground">{otpEmail}</span>
+                    </p>
+                  </div>
 
-              <Card className="border-border shadow-sm">
-                <CardContent className="p-6">
-                  <form onSubmit={handleOtp} className="space-y-5">
+                  <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="otp">One-Time Code</Label>
+                      <Label htmlFor="otp" className="sr-only">Verification code</Label>
                       <Input
                         id="otp"
-                        type="text"
                         inputMode="numeric"
-                        placeholder="000000"
+                        autoComplete="one-time-code"
                         maxLength={6}
-                        disabled={isLoading}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                        className="text-center text-2xl tracking-[0.5em] font-mono h-14"
-                        required
+                        placeholder="000000"
+                        className="text-center text-lg tracking-[0.5em] font-mono"
+                        {...otpForm.register('otp')}
                       />
+                      {otpForm.formState.errors.otp && (
+                        <p className="text-xs text-destructive text-center">{otpForm.formState.errors.otp.message}</p>
+                      )}
                     </div>
 
-                    {error && (
-                      <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                        {error}
-                      </div>
-                    )}
-
-                    <Button type="submit" disabled={isLoading || otp.length !== 6} className="w-full">
-                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify & Sign In'}
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Verify & sign in
                     </Button>
-
-                    <p className="text-center text-sm text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={() => { setStep('credentials'); setOtp(''); setError(''); }}
-                        className="hover:text-foreground transition-colors underline underline-offset-4"
-                      >
-                        Back to login
-                      </button>
-                    </p>
                   </form>
+
+                  <div className="mt-4 flex items-center justify-between text-xs">
+                    <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={backToCredentials}>
+                      <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
+                      Back
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 text-primary" onClick={resendOtp} disabled={isSubmitting}>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      Resend code
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>

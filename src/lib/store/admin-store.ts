@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Client, ClientReport, AdminNotification } from '@/lib/api/types';
 
 interface AdminSession {
   token: string;
@@ -22,27 +21,6 @@ interface AdminState {
   isSuperAdmin: () => boolean;
 }
 
-interface AppState {
-  sidebarCollapsed: boolean;
-  settings: {
-    sidebarCollapsed: boolean;
-    [key: string]: unknown;
-  };
-  isLoading: boolean;
-  selectedClient: Client | null;
-  clientReport: ClientReport | null;
-  notifications: AdminNotification[];
-  unreadCount: number;
-
-  toggleSidebar: () => void;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  setLoading: (loading: boolean) => void;
-  setSelectedClient: (client: Client | null) => void;
-  setClientReport: (report: ClientReport | null) => void;
-  setNotifications: (notifications: AdminNotification[]) => void;
-  setUnreadCount: (count: number) => void;
-}
-
 export const useAdminStore = create<AdminState>()(
   persist(
     (set, get) => ({
@@ -56,6 +34,17 @@ export const useAdminStore = create<AdminState>()(
       checkSession: () => {
         const { session } = get();
         if (!session?.token) return false;
+        // Decode the JWT exp claim so stale sessions bounce to /login
+        // instead of eating a 401 round-trip on the first API call.
+        try {
+          const payload = JSON.parse(atob(session.token.split('.')[1] ?? '')) as { exp?: number };
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            get().logout();
+            return false;
+          }
+        } catch {
+          // Token not a parseable JWT — treat as present
+        }
         return true;
       },
 
@@ -66,43 +55,6 @@ export const useAdminStore = create<AdminState>()(
     }),
     {
       name: 'zota-admin-session',
-    }
-  )
-);
-
-export const useAppStore = create<AppState>()(
-  persist(
-    (set) => ({
-      sidebarCollapsed: false,
-      settings: {
-        sidebarCollapsed: false,
-      },
-      isLoading: false,
-      selectedClient: null,
-      clientReport: null,
-      notifications: [],
-      unreadCount: 0,
-
-      toggleSidebar: () =>
-        set((state) => ({
-          sidebarCollapsed: !state.sidebarCollapsed,
-          settings: { ...state.settings, sidebarCollapsed: !state.sidebarCollapsed },
-        })),
-
-      setSidebarCollapsed: (collapsed) =>
-        set((state) => ({
-          sidebarCollapsed: collapsed,
-          settings: { ...state.settings, sidebarCollapsed: collapsed },
-        })),
-
-      setLoading: (loading) => set({ isLoading: loading }),
-      setSelectedClient: (client) => set({ selectedClient: client }),
-      setClientReport: (report) => set({ clientReport: report }),
-      setNotifications: (notifications) => set({ notifications }),
-      setUnreadCount: (count) => set({ unreadCount: count }),
-    }),
-    {
-      name: 'zota-admin-app',
     }
   )
 );

@@ -68,10 +68,11 @@ async function apiFetch<T = unknown>(endpoint: string, options: RequestOptions =
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  // Handle 401 and 403 — force logout
-  if (response.status === 401 || response.status === 403) {
+  // Handle 401/403 — session issues. Only force logout for non-auth endpoints;
+  // auth endpoints (login) surface the error to the caller instead.
+  if ((response.status === 401 || response.status === 403) && !endpoint.startsWith('/auth/')) {
     useAdminStore.getState().logout();
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
       window.location.href = '/login';
     }
     throw new ApiError('Session expired or invalid. Please log in again.', response.status);

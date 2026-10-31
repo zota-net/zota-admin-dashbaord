@@ -1,142 +1,163 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Search, RefreshCw, Wifi, WifiOff, Smartphone } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { clientsService, bopDevicesService } from '@/lib/api';
-import type { Client, BopDevice } from '@/lib/api/types';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Smartphone, Wifi, WifiOff, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PageHeader, DataTable, StatsCard, type Column } from '@/components/admin';
+import { clientsService, bopDevicesService } from '@/lib/api';
+import type { BopDevice } from '@/lib/api/types';
+import { useAsync } from '@/lib/use-async';
+import { formatDateTime, formatDate } from '@/lib/format';
 
-type TaggedDevice = BopDevice & { clientName: string };
-
-const fmtDate = (d: string | undefined) => d ? new Date(d).toLocaleDateString() : '—';
+interface Row extends BopDevice {
+  clientName: string;
+  active: boolean;
+}
 
 export default function DevicesPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [devices, setDevices] = useState<TaggedDevice[]>([]);
-  const [loading, setLoading] = useState(true);
   const [clientFilter, setClientFilter] = useState('all');
-  const [search, setSearch] = useState('');
 
-  const load = async () => {
-    setLoading(true);
+  const data = useAsync<Row[]>(async () => {
+    const list = await clientsService.getAll();
+    const settled = await Promise.allSettled(
+      list.map((c) =>
+        bopDevicesService.getByClient(c.id).then((devs) => {
+          const now = Date.now();
+          return devs.map((d) => ({
+            ...d,
+            clientName: c.businessName,
+            active: d.expiresAt ? new Date(d.expiresAt).getTime() > now : false,
+          }));
+        })
+      )
+    );
+    return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+  }, []);
+
+  const rows = useMemo(() => {
+    const all = data.data ?? [];
+    return clientFilter === 'all' ? all : all.filter((r) => r.clientName === clientFilter);
+  }, [data.data, clientFilter]);
+
+  const clients = useMemo(() => {
+    const names = new Set((data.data ?? []).map((r) => r.clientName));
+    return Array.from(names).sort();
+  }, [data.data]);
+
+  const isOnline = (d: Row) => d.active;
+
+  const onlineCount = useMemo(() => (data.data ?? []).filter(isOnline).length, [data.data]);
+
+  const remove = async (id: string) => {
     try {
-      const clientList = await clientsService.getAll();
-      setClients(clientList);
-      const all = await Promise.allSettled(
-        clientList.map(c =>
-          bopDevicesService.getByClient(c.id).then(devs => devs.map(d => ({ ...d, clientName: c.businessName })))
-        )
-      ).then(rs => rs.flatMap(r => r.status === 'fulfilled' ? r.value : []));
-      setDevices(all.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime()));
-    } catch { toast.error('Failed to load devices'); }
-    finally { setLoading(false); }
+      await bopDevicesService.delete(id);
+      toast.success('Device removed');
+      data.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove device');
+    }
   };
 
-  useEffect(() => { load(); }, []);
-
-  const isExpired = (d: BopDevice) => new Date(d.expiresAt) < new Date();
-
-  const filtered = devices.filter(d =>
-    (clientFilter === 'all' || d.clientName === clients.find(c => c.id === clientFilter)?.businessName) &&
-    (!search || d.macAddress.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const stats = {
-    total: devices.length,
-    active: devices.filter(d => !isExpired(d)).length,
-    expired: devices.filter(isExpired).length,
-  };
+  const columns: Column<Row>[] = [
+    {
+      key: 'macAddress',
+      header: 'Device',
+      sortValue: (r) => r.macAddress,
+      render: (r) => (
+        <div className="flex items-center gap-2.5">
+          <div className={`flex h-8 w-8 items-center justify-center rounded-full ${isOnline(r) ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'}`}>
+            <Smartphone className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="font-mono text-xs font-medium">{r.macAddress}</p>
+            <p className="text-xs text-muted-foreground">{r.clientName}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'active',
+      header: 'Status',
+      render: (r) =>
+        isOnline(r) ? (
+          <Badge className="bg-green-500/10 text-green-500 border-transparent hover:bg-green-500/10 text-[10px]">
+            <Wifi className="h-3 w-3 mr-1" />Active
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-[10px]">
+            <WifiOff className="h-3 w-3 mr-1" />Expired
+          </Badge>
+        ),
+      sortValue: (r) => (isOnline(r) ? 1 : 0),
+    },
+    { key: 'voucher_id', header: 'Voucher', hideOnMobile: true, render: (r) => <span className="font-mono text-xs">{String(r.voucher_id)}</span> },
+    { key: 'JoinedAt', header: 'Joined', hideOnMobile: true, render: (r) => <span className="text-muted-foreground">{formatDate(r.JoinedAt)}</span> },
+    { key: 'expiresAt', header: 'Expires', sortValue: (r) => r.expiresAt, render: (r) => <span className="text-muted-foreground">{formatDateTime(r.expiresAt)}</span> },
+    {
+      key: 'actions',
+      header: '',
+      className: 'w-12 text-right',
+      render: (r) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-destructive"
+          title="Remove device"
+          onClick={(e) => {
+            e.stopPropagation();
+            remove(String(r.id));
+          }}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Connected Devices</h1>
-          <p className="text-muted-foreground mt-1">Hotspot-connected customer devices across all clients</p>
-        </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />Refresh
-        </Button>
+    <>
+      <PageHeader title="Devices" description="All client devices connected through the platform" />
+
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+        <StatsCard title="Total Devices" value={(data.data ?? []).length} icon={Smartphone} />
+        <StatsCard title="Active Sessions" value={onlineCount} icon={Wifi} variant="success" />
+        <StatsCard title="Expired" value={(data.data ?? []).length - onlineCount} icon={WifiOff} variant="warning" />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        {[
-          { label: 'Total Devices', value: stats.total },
-          { label: 'Active Sessions', value: stats.active },
-          { label: 'Expired Sessions', value: stats.expired },
-        ].map(s => (
-          <Card key={s.label}><CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">{s.label}</p>
-            <p className="text-2xl font-bold">{s.value.toLocaleString()}</p>
-          </CardContent></Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap gap-3">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input className="pl-9" placeholder="Search MAC address…" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-            <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="w-44"><SelectValue placeholder="All clients" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Clients</SelectItem>
-                {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.businessName}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2"><Smartphone className="w-8 h-8" /><p>No devices found</p></div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>MAC Address</TableHead><TableHead>Status</TableHead><TableHead>Client</TableHead>
-                    <TableHead>Joined</TableHead><TableHead>Expires</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map(d => {
-                    const expired = isExpired(d);
-                    return (
-                      <TableRow key={d.id}>
-                        <TableCell className="font-mono text-sm">{d.macAddress}</TableCell>
-                        <TableCell>
-                          {expired ? (
-                            <Badge variant="outline" className="gap-1 text-xs text-muted-foreground">
-                              <WifiOff className="w-3 h-3" />Expired
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="gap-1 text-xs">
-                              <Wifi className="w-3 h-3" />Active
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm">{d.clientName}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{fmtDate(d.JoinedAt ?? d.createdAt)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{fmtDate(d.expiresAt)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <DataTable
+        columns={columns}
+        rows={data.data ? rows : null}
+        rowKey={(r) => String(r.id)}
+        isLoading={data.isLoading}
+        error={data.error}
+        onRetry={data.refresh}
+        searchPlaceholder="Search by MAC..."
+        searchFn={(r, q) => r.macAddress.toLowerCase().includes(q) || r.clientName.toLowerCase().includes(q)}
+        emptyMessage="No devices found"
+        pageSize={20}
+        toolbar={
+          <Select value={clientFilter} onValueChange={setClientFilter}>
+            <SelectTrigger className="w-44 h-9">
+              <SelectValue placeholder="Client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All clients</SelectItem>
+              {clients.map((name) => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
+    </>
   );
 }

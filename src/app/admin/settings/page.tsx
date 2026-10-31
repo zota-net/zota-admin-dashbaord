@@ -1,326 +1,425 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  ShieldCheck,
+  UserPlus,
+  Trash2,
+  ArrowUpDown,
+  Loader2,
+  Moon,
+  Sun,
+  Palette,
+  HardDriveDownload,
+  AlertOctagon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
-  Lock,
-  Users,
-  Shield,
-  User,
-  KeyRound,
-  Plus,
-  Trash2,
-  Edit,
-  Loader2,
-} from 'lucide-react';
-import { adminsService } from '@/lib/api';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { PageHeader, ErrorState } from '@/components/admin';
+import { adminsService, clientsService } from '@/lib/api';
+import type { AdminUser, Client } from '@/lib/api/types';
+import { useAsync } from '@/lib/use-async';
 import { useAdminStore } from '@/lib/store/admin-store';
-import type { AdminUser } from '@/lib/api/types';
-import { AddAdminDialog } from '@/components/admin/dialogs/add-admin-dialog';
-import { RoleChangeDialog } from '@/components/admin/dialogs/role-change-dialog';
-import { RemoveAdminDialog } from '@/components/admin/dialogs/remove-admin-dialog';
+import { useThemeStore, defaultThemes } from '@/lib/store/theme-store';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
-  const { session } = useAdminStore();
-  const isSuperAdmin = session?.admin?.role === 'SuperAdmin';
-
-  const [admins, setAdmins] = useState<AdminUser[]>([]);
-  const [isLoadingAdmins, setIsLoadingAdmins] = useState(true);
-
-  const [showAddAdmin, setShowAddAdmin] = useState(false);
-  const [showRoleChange, setShowRoleChange] = useState(false);
-  const [showRemoveAdmin, setShowRemoveAdmin] = useState(false);
-  const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null);
-
-  const fetchAdmins = useCallback(async () => {
-    setIsLoadingAdmins(true);
-    try {
-      const data = await adminsService.getAll();
-      setAdmins(data);
-    } catch {
-      // silent
-    } finally {
-      setIsLoadingAdmins(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAdmins();
-  }, [fetchAdmins]);
+  const isSuper = useAdminStore((s) => s.isSuperAdmin());
+  const admins = useAsync<AdminUser[]>(() => adminsService.getAll(), []);
+  const clients = useAsync<Client[]>(() => clientsService.getAll(), []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your profile, admin accounts, and system preferences
-        </p>
-      </div>
+    <>
+      <PageHeader title="Settings" description="Administration, appearance and platform maintenance" />
 
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="admins">Admins</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-        </TabsList>
+      <AppearanceCard />
 
-        {/* Profile Tab */}
-        <TabsContent value="profile" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Admin Profile
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="fullname">Full Name</Label>
-                  <Input id="fullname" defaultValue={session?.admin?.fullname || ''} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue={session?.admin?.email || ''} />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button>Save Changes</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <KeyRound className="w-5 h-5" />
-                Change Password
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="currentPassword">Current Password</Label>
-                <Input id="currentPassword" type="password" />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input id="newPassword" type="password" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Input id="confirmPassword" type="password" />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button>Update Password</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Security Tab */}
-        <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="w-5 h-5" />
-                Security Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Two-Factor Authentication</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enable two-factor authentication for all admin accounts
-                </p>
-                <Button variant="outline">Configure 2FA</Button>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold">Session Management</h3>
-                <p className="text-sm text-muted-foreground">
-                  Set session timeout and security policies
-                </p>
-                <Button variant="outline">Manage Sessions</Button>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold">API Keys</h3>
-                <p className="text-sm text-muted-foreground">
-                  Generate and manage API keys for integrations
-                </p>
-                <Button variant="outline">Manage API Keys</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Admins Tab */}
-        <TabsContent value="admins" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Admin Users
-                {!isLoadingAdmins && (
-                  <Badge variant="secondary" className="ml-2">{admins.length}</Badge>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <CardTitle>Administrators</CardTitle>
+              <CardDescription>Accounts with access to this control panel</CardDescription>
+            </div>
+            <AddAdminDialog onAdded={() => admins.refresh()} disabled={!isSuper} />
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {admins.error ? (
+            <div className="p-4"><ErrorState message={admins.error} onRetry={admins.refresh} compact /></div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Admin</TableHead>
+                  <TableHead className="hidden md:table-cell">Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead className="hidden md:table-cell">Verified</TableHead>
+                  <TableHead className="w-24 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {admins.isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
+                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" />Loading administrators…
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  (admins.data ?? []).map((a) => (
+                    <AdminRow key={a.id} admin={a} canManage={isSuper} onChanged={() => admins.refresh()} />
+                  ))
                 )}
-              </CardTitle>
-              {isSuperAdmin && (
-                <Button size="sm" onClick={() => setShowAddAdmin(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Admin
-                </Button>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <MaintenanceCard clients={clients.data ?? []} />
+    </>
+  );
+}
+
+function AdminRow({ admin, canManage, onChanged }: { admin: AdminUser; canManage: boolean; onChanged: () => void }) {
+  const me = useAdminStore((s) => s.session?.admin);
+  const isMe = String(me?.id) === String(admin.id);
+  const [roleOpen, setRoleOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const changeRole = async (role: 'Admin' | 'SuperAdmin') => {
+    setBusy(true);
+    try {
+      await adminsService.updateRole(admin.id, role);
+      toast.success(`${admin.fullname} is now ${role}`);
+      setRoleOpen(false);
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update role');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await adminsService.remove(admin.id);
+      toast.success('Admin removed');
+      setRemoveOpen(false);
+      onChanged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove admin');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <TableRow>
+      <TableCell>
+        <p className="font-medium">{admin.fullname} {isMe && <span className="text-xs text-muted-foreground">(you)</span>}</p>
+        <p className="text-xs text-muted-foreground md:hidden">{admin.email}</p>
+      </TableCell>
+      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{admin.email}</TableCell>
+      <TableCell>
+        <Badge variant={admin.role === 'SuperAdmin' ? 'default' : 'secondary'} className="text-[10px]">{admin.role}</Badge>
+      </TableCell>
+      <TableCell className="hidden md:table-cell">
+        {admin.emailVerified ? <Badge variant="outline" className="text-[10px]">Verified</Badge> : <Badge variant="outline" className="text-[10px] text-muted-foreground">Pending</Badge>}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManage || isMe} title="Change role" onClick={() => setRoleOpen(true)}>
+            <ArrowUpDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" disabled={!canManage || isMe} title="Remove" onClick={() => setRemoveOpen(true)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
+        <Dialog open={roleOpen} onOpenChange={setRoleOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Change Role</DialogTitle>
+              <DialogDescription>{admin.fullname} — currently {admin.role}</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant={admin.role === 'Admin' ? 'secondary' : 'outline'} onClick={() => changeRole('Admin')} disabled={busy}>Admin</Button>
+              <Button variant={admin.role === 'SuperAdmin' ? 'secondary' : 'outline'} onClick={() => changeRole('SuperAdmin')} disabled={busy}>SuperAdmin</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={removeOpen} onOpenChange={setRemoveOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertOctagon className="h-5 w-5" /> Remove Admin
+              </DialogTitle>
+              <DialogDescription>
+                Revoke platform access for {admin.fullname}? This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRemoveOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={remove} disabled={busy}>
+                {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Remove Access
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function AddAdminDialog({ onAdded, disabled }: { onAdded: () => void; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ fullname: '', email: '', password: '', phone: '' });
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    if (!form.fullname || !form.email || !form.password) {
+      toast.error('Name, email and password are required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await adminsService.create({ ...form, role: 'Admin' });
+      toast.success('Admin invited');
+      setForm({ fullname: '', email: '', password: '', phone: '' });
+      setOpen(false);
+      onAdded();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add admin');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <Button size="sm" onClick={() => setOpen(true)} disabled={disabled} title={disabled ? 'SuperAdmin required' : undefined}>
+        <UserPlus className="h-4 w-4 mr-2" />
+        Add Admin
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Administrator</DialogTitle>
+            <DialogDescription>Grant platform control-panel access to another account</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Full Name</Label>
+                <Input value={form.fullname} onChange={(e) => setForm({ ...form, fullname: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Password</Label>
+                <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Phone (optional)</Label>
+                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={submit} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Add Admin
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function AppearanceCard() {
+  const { theme, setTheme } = useTheme();
+  const { activeThemeId, setActiveTheme } = useThemeStore();
+  const allThemes = [...defaultThemes, ...useThemeStore((s) => s.customThemes)];
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Palette className="h-5 w-5 text-primary" />
+          <div>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>Shared theming with the XETIHUB platform</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={theme === 'light' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTheme('light')}
+          >
+            <Sun className="h-4 w-4 mr-2" />
+            Light
+          </Button>
+          <Button
+            variant={theme === 'dark' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setTheme('dark')}
+          >
+            <Moon className="h-4 w-4 mr-2" />
+            Dark
+          </Button>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {allThemes.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTheme(t.id)}
+              className={cn(
+                'flex items-center gap-3 rounded-lg border p-3 text-left transition-colors',
+                activeThemeId === t.id ? 'border-primary bg-primary/5' : 'border-border hover:border-border/80 bg-card'
               )}
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoadingAdmins ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : admins.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  No admin users found.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Joined</TableHead>
-                      {isSuperAdmin && <TableHead className="w-[100px]">Actions</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {admins.map((admin) => (
-                      <TableRow key={admin.id}>
-                        <TableCell className="font-medium">
-                          {admin.fullname}
-                          {admin.id === Number(session?.admin?.id) && (
-                            <Badge variant="outline" className="ml-2 text-[10px]">You</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{admin.email}</TableCell>
-                        <TableCell className="text-muted-foreground">{admin.phone || '—'}</TableCell>
-                        <TableCell>
-                          <Badge variant={admin.role === 'SuperAdmin' ? 'default' : 'secondary'}>
-                            {admin.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString() : '—'}
-                        </TableCell>
-                        {isSuperAdmin && (
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setSelectedAdmin(admin);
-                                  setShowRoleChange(true);
-                                }}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                              </Button>
-                              {admin.id !== Number(session?.admin?.id) && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => {
-                                    setSelectedAdmin(admin);
-                                    setShowRemoveAdmin(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            >
+              <span className="flex -space-x-1.5">
+                <span className="h-5 w-5 rounded-full border-2 border-background" style={{ background: t.primary }} />
+                <span className="h-5 w-5 rounded-full border-2 border-background" style={{ background: t.accent }} />
+              </span>
+              <span className="text-sm font-medium">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-        {/* System Tab */}
-        <TabsContent value="system" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                System Configuration
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Database</h3>
-                <p className="text-sm text-muted-foreground">
-                  Backup, maintenance, and optimization settings
-                </p>
-                <Button variant="outline">Database Settings</Button>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold">Cache Management</h3>
-                <p className="text-sm text-muted-foreground">
-                  Clear and configure application cache
-                </p>
-                <Button variant="outline">Clear Cache</Button>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold">System Health</h3>
-                <p className="text-sm text-muted-foreground">
-                  Monitor system performance and health metrics
-                </p>
-                <Button variant="outline">View Health</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+function MaintenanceCard({ clients }: { clients: Client[] }) {
+  const [target, setTarget] = useState('');
+  const [opts, setOpts] = useState({ clearVouchers: false, clearPackages: false, clearDevices: false, clearAdverts: false, clearBalance: false });
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-      {/* Dialogs */}
-      <AddAdminDialog
-        open={showAddAdmin}
-        onOpenChange={setShowAddAdmin}
-        onAdminAdded={fetchAdmins}
-      />
+  const client = clients.find((c) => String(c.id) === target);
 
-      {selectedAdmin && (
-        <>
-          <RoleChangeDialog
-            open={showRoleChange}
-            onOpenChange={setShowRoleChange}
-            adminId={selectedAdmin.id}
-            adminName={selectedAdmin.fullname}
-            currentRole={selectedAdmin.role}
-            onRoleChanged={fetchAdmins}
-          />
-          <RemoveAdminDialog
-            open={showRemoveAdmin}
-            onOpenChange={setShowRemoveAdmin}
-            adminId={selectedAdmin.id}
-            adminName={selectedAdmin.fullname}
-            adminEmail={selectedAdmin.email}
-            onAdminRemoved={fetchAdmins}
-          />
-        </>
-      )}
-    </div>
+  const runReset = async () => {
+    if (!client) return;
+    setBusy(true);
+    try {
+      await clientsService.reset(client.id, opts);
+      toast.success(`Client "${client.businessName}" reset completed`);
+      setOpen(false);
+      setTarget('');
+      setOpts({ clearVouchers: false, clearPackages: false, clearDevices: false, clearAdverts: false, clearBalance: false });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Reset failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <HardDriveDownload className="h-5 w-5 text-destructive" />
+          <div className="flex-1">
+            <CardTitle className="text-destructive">Maintenance — Client Data Reset</CardTitle>
+            <CardDescription>Wipe a client&apos;s platform data for onboarding or recovery</CardDescription>
+          </div>
+          <Button variant="destructive" size="sm" disabled={!target} onClick={() => setOpen(true)}>
+            Reset Client Data
+          </Button>
+        </div>
+        <div className="pt-2 max-w-sm">
+          <Select value={target} onValueChange={setTarget}>
+            <SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger>
+            <SelectContent>
+              {clients.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>{c.businessName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertOctagon className="h-5 w-5" /> Reset {client?.businessName}?
+            </DialogTitle>
+            <DialogDescription>Irreversible. Choose the data scopes to clear:</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2 py-2">
+            {(Object.keys(opts) as (keyof typeof opts)[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setOpts((prev) => ({ ...prev, [k]: !prev[k] }))}
+                className={cn(
+                  'rounded-lg border px-3 py-2.5 text-sm text-left transition-colors',
+                  opts[k] ? 'border-destructive bg-destructive/10 text-destructive font-medium' : 'border-border hover:bg-accent/40'
+                )}
+              >
+                {k.replace('clear', '')}
+              </button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={runReset}
+              disabled={busy || !Object.values(opts).some(Boolean)}
+            >
+              {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Confirm Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

@@ -1,479 +1,312 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { CircleDollarSign, TrendingUp, Landmark, ArrowDownLeft, Loader2 } from 'lucide-react';
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts';
-import {
-  DollarSign,
-  TrendingUp,
-  Calendar,
-  Download,
-  ArrowUpRight,
-  ArrowDownRight,
-  Wallet,
-  CreditCard,
-  BarChart2,
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PageTransition, StaggerContainer, StaggerItem } from '@/components/common';
-import { clientsService, reportsService, walletsService, withdrawalsService } from '@/lib/api';
-import type { VoucherSale, AdminWithdrawal } from '@/lib/api/types';
-import { format, subDays, parseISO } from 'date-fns';
-import { WithdrawAdminFundsDialog } from '@/components/admin/dialogs/withdraw-admin-funds-dialog';
-
-type TimeRange = '7d' | '30d' | '90d' | '12m';
-
-const PROVIDER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#ef4444', '#6b7280'];
-
-interface RevenueData {
-  date: string;
-  revenue: number;
-  transactions: number;
-}
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { PageHeader, StatsCard, ErrorState, EmptyState, DataTable, type Column } from '@/components/admin';
+import { withdrawalsService, adminStatsService } from '@/lib/api';
+import type { AdminWithdrawal, Transaction, Wallet } from '@/lib/api/types';
+import { useAsync } from '@/lib/use-async';
+import { formatMoney, formatDateTime, timeAgo, statusVariant } from '@/lib/format';
 
 export default function RevenuePage() {
-  const [timeRange, setTimeRange] = useState<TimeRange>('30d');
-  const [isLoading, setIsLoading] = useState(true);
-  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
-  const [summary, setSummary] = useState({
-    totalRevenue: 0,
-    totalFees: 0,
-    totalTransactions: 0,
-    averageTransaction: 0,
-    growth: 0,
-  });
-  const [recentWithdrawals, setRecentWithdrawals] = useState<AdminWithdrawal[]>([]);
-  const [allSales, setAllSales] = useState<VoucherSale[]>([]);
-  const [adminBalance, setAdminBalance] = useState(0);
-  const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
-  useEffect(() => {
-    const loadRevenueData = async () => {
-      setIsLoading(true);
-      try {
-        const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365;
-        const clientsData = await clientsService.getAll();
+  const wallet = useAsync<Wallet | null>(() => adminStatsService.getAdminWallet(), []);
+  const txns = useAsync<Transaction[]>(
+    () => (wallet.data ? adminStatsService.getWalletTransactions(wallet.data.id, 200) : Promise.resolve([])),
+    [wallet.data?.id]
+  );
+  const withdrawals = useAsync<AdminWithdrawal[]>(
+    () => withdrawalsService.getAdminWithdrawals().catch(() => [] as AdminWithdrawal[]),
+    []
+  );
 
-        const dailyData: Record<string, { revenue: number; transactions: number }> = {};
-        
-        for (let i = days; i >= 0; i--) {
-          const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
-          dailyData[date] = { revenue: 0, transactions: 0 };
-        }
+  const totals = useMemo(() => {
+    const list = txns.data ?? [];
+    const inflow = list.filter((t) => Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount), 0);
+    const withdrawn = (withdrawals.data ?? [])
+      .filter((w) => String(w.status).toLowerCase() === 'completed')
+      .reduce((s, w) => s + Number(w.amount), 0);
+    return { inflow, withdrawn };
+  }, [txns.data, withdrawals.data]);
 
-        let totalRev = 0;
-        let totalFees = 0;
-        let totalTrans = 0;
-        const collectedSales: VoucherSale[] = [];
+  const chartData = useMemo(() => {
+    const byDay = new Map<string, number>();
+    (txns.data ?? [])
+      .filter((t) => Number(t.amount) > 0)
+      .forEach((t) => {
+        const day = new Date(t.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        byDay.set(day, (byDay.get(day) ?? 0) + Number(t.amount));
+      });
+    return Array.from(byDay.entries()).slice(-14).map(([day, total]) => ({ day, total }));
+  }, [txns.data]);
 
-        await Promise.allSettled(clientsData.map(async (client) => {
-          const salesReport = await reportsService.getSalesReport(client.id, {
-            startDate: format(subDays(new Date(), days), 'yyyy-MM-dd'),
-            endDate: format(new Date(), 'yyyy-MM-dd'),
-          });
-          totalRev += salesReport.summary.totalRevenue ?? 0;
-          totalFees += salesReport.summary.totalFees ?? 0;
-          totalTrans += salesReport.sales.length;
-          collectedSales.push(...salesReport.sales);
-          for (const sale of salesReport.sales) {
-            const date = format(parseISO(sale.createdAt), 'yyyy-MM-dd');
-            if (dailyData[date]) {
-              dailyData[date].revenue += sale.amount;
-              dailyData[date].transactions += 1;
-            }
-          }
-        }));
+  const txnColumns: Column<Transaction>[] = [
+    { key: 'createdAt', header: 'Date', render: (r) => <span className="text-muted-foreground">{timeAgo(r.createdAt)}</span>, sortValue: (r) => r.createdAt },
+    { key: 'type', header: 'Type', render: (r) => <Badge variant="outline" className="text-[10px]">{r.type}</Badge> },
+    { key: 'description', header: 'Description', hideOnMobile: true },
+    {
+      key: 'amount',
+      header: 'Amount',
+      sortValue: (r) => Number(r.amount),
+      render: (r) => (
+        <span className={Number(r.amount) >= 0 ? 'text-green-500 tabular-nums font-medium' : 'tabular-nums'}>
+          {formatMoney(Number(r.amount))}
+        </span>
+      ),
+    },
+    { key: 'status', header: 'Status', render: (r) => <Badge variant={statusVariant(r.status)} className="text-[10px]">{r.status}</Badge> },
+  ];
 
-        const chartData = Object.entries(dailyData).map(([date, data]) => ({
-          date: format(parseISO(date), 'MMM dd'),
-          revenue: data.revenue,
-          transactions: data.transactions,
-        }));
-
-        setRevenueData(chartData);
-        setAllSales(collectedSales);
-        
-        const avgTrans = totalTrans > 0 ? totalRev / totalTrans : 0;
-        const growth = 0;
-
-        setSummary({
-          totalRevenue: totalRev,
-          totalFees: totalFees,
-          totalTransactions: totalTrans,
-          averageTransaction: avgTrans,
-          growth,
-        });
-
-        setRecentWithdrawals([]);
-
-        try {
-          const wallet = await walletsService.getAdminWallet();
-          setAdminBalance(wallet.balance ?? 0);
-          const wData = await withdrawalsService.getAdminWithdrawals();
-          setRecentWithdrawals(wData);
-        } catch { /* not critical */ }
-      } catch (err) {
-        console.error('Failed to load revenue data:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadRevenueData();
-  }, [timeRange]);
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      maximumFractionDigits: 0,
-    }).format(amount);
-
-  const paymentMethodData = useMemo(() => {
-    if (allSales.length === 0) return [];
-    const totals: Record<string, number> = {};
-    for (const sale of allSales) {
-      totals[sale.provider] = (totals[sale.provider] ?? 0) + sale.amount;
-    }
-    const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
-    return Object.entries(totals)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, value], i) => ({
-        name,
-        value: Math.round((value / grandTotal) * 100),
-        color: PROVIDER_COLORS[i % PROVIDER_COLORS.length],
-      }));
-  }, [allSales]);
+  const withdrawalColumns: Column<AdminWithdrawal>[] = [
+    { key: 'createdAt', header: 'Date', sortValue: (r) => r.createdAt, render: (r) => <span className="text-muted-foreground">{formatDateTime(r.createdAt)}</span> },
+    { key: 'phone', header: 'Phone', render: (r) => <span className="font-mono text-xs">{r.phone}</span> },
+    { key: 'provider', header: 'Provider', render: (r) => <Badge variant="secondary" className="text-[10px]">{r.provider}</Badge> },
+    { key: 'amount', header: 'Amount', sortValue: (r) => r.amount, render: (r) => <span className="tabular-nums font-medium">{formatMoney(r.amount)}</span> },
+    { key: 'status', header: 'Status', render: (r) => <Badge variant={statusVariant(r.status)} className="text-[10px]">{r.status}</Badge> },
+    { key: 'failureReason', header: 'Note', hideOnMobile: true, render: (r) => <span className="text-xs text-muted-foreground">{r.failureReason ?? '—'}</span> },
+  ];
 
   return (
-    <PageTransition>
-      <div className="space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Revenue</h1>
-            <p className="text-muted-foreground">Track your platform revenue and withdrawals</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-              <SelectTrigger className="w-[140px]">
-                <Calendar className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-                <SelectItem value="12m">Last 12 months</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </motion.div>
+    <>
+      <PageHeader title="Revenue Control" description="Platform earnings, admin wallet and withdrawals">
+        <Button size="sm" onClick={() => setWithdrawOpen(true)} disabled={!wallet.data || wallet.data.balance <= 0}>
+          <ArrowDownLeft className="h-4 w-4 mr-2" />
+          Withdraw Funds
+        </Button>
+      </PageHeader>
 
-        {/* Stats Cards */}
-        <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Revenue</p>
-                    <p className="text-2xl font-bold">{formatCurrency(summary.totalRevenue)}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-green-500" />
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center text-sm">
-                  {summary.growth >= 0 ? (
-                    <ArrowUpRight className="h-4 w-4 text-green-500 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-4 w-4 text-red-500 mr-1" />
-                  )}
-                  <span className={summary.growth >= 0 ? 'text-green-500' : 'text-red-500'}>
-                    {Math.abs(summary.growth)}%
-                  </span>
-                  <span className="text-muted-foreground ml-1">vs last period</span>
-                </div>
-              </CardContent>
-            </Card>
-          </StaggerItem>
-          <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Service Fees</p>
-                    <p className="text-2xl font-bold">{formatCurrency(summary.totalFees)}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <CreditCard className="h-5 w-5 text-blue-500" />
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">Your revenue share</p>
-              </CardContent>
-            </Card>
-          </StaggerItem>
-          <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Transactions</p>
-                    <p className="text-2xl font-bold">{summary.totalTransactions}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-purple-500" />
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">Voucher redemptions</p>
-              </CardContent>
-            </Card>
-          </StaggerItem>
-          <StaggerItem>
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                    <p className="text-2xl font-bold">{formatCurrency(summary.averageTransaction)}</p>
-                  </div>
-                  <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                    <Wallet className="h-5 w-5 text-orange-500" />
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">Per transaction</p>
-              </CardContent>
-            </Card>
-          </StaggerItem>
-        </StaggerContainer>
+      {wallet.error ? (
+        <ErrorState message={wallet.error} onRetry={wallet.refresh} />
+      ) : (
+        <>
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <StatsCard
+              title="Admin Wallet"
+              value={wallet.data ? formatMoney(wallet.data.balance) : '—'}
+              description="Available balance"
+              icon={CircleDollarSign}
+              variant="primary"
+              animated={false}
+            />
+            <StatsCard
+              title="Platform Income"
+              value={txns.data ? formatMoney(totals.inflow) : '—'}
+              description="Recorded inflow (recent history)"
+              icon={TrendingUp}
+              variant="success"
+              animated={false}
+            />
+            <StatsCard
+              title="Total Withdrawn"
+              value={withdrawals.data ? formatMoney(totals.withdrawn) : '—'}
+              description="Completed withdrawals"
+              icon={Landmark}
+              animated={false}
+            />
+            <StatsCard
+              title="Withdrawals"
+              value={withdrawals.data?.length ?? 0}
+              description="Requests processed"
+              icon={ArrowDownLeft}
+            />
+          </div>
 
-        {/* Charts */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Revenue Over Time */}
-          <Card className="lg:col-span-2">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Revenue Over Time
-              </CardTitle>
+              <CardTitle>Income Trend</CardTitle>
+              <CardDescription>Daily inflow into the admin wallet (last recorded days)</CardDescription>
             </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center h-[300px]">
-                  <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-                </div>
-              ) : revenueData.length === 0 ? (
-                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                  No revenue data available
-                </div>
+            <CardContent className="h-[260px]">
+              {txns.isLoading ? (
+                <Skeleton className="h-full w-full" />
+              ) : chartData.length === 0 ? (
+                <EmptyState message="No income recorded yet" />
               ) : (
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={revenueData}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} stroke="hsl(var(--muted-foreground))" />
                     <YAxis
-                      tick={{ fontSize: 12 }}
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                      fontSize={11}
+                      stroke="hsl(var(--muted-foreground))"
+                      tickFormatter={(v: number) => (v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v))}
                     />
-                    <Tooltip
+                    <RechartsTooltip
+                      formatter={(value) => formatMoney(Number(value))}
                       contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
+                        background: 'hsl(var(--popover))',
                         border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
-                        color: 'hsl(var(--card-foreground))',
+                        fontSize: '12px',
                       }}
-                      formatter={(value: number) => [formatCurrency(value), 'Revenue']}
                     />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="#22c55e"
-                      fill="url(#revenueGradient)"
-                      strokeWidth={2}
-                    />
+                    <Area type="monotone" dataKey="total" stroke="hsl(var(--primary))" fill="url(#revFill)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
             </CardContent>
           </Card>
 
-          {/* Payment Methods */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment Methods
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={paymentMethodData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {paymentMethodData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2 mt-4">
-                {paymentMethodData.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span>{item.name}</span>
-                    </div>
-                    <span className="font-medium">{item.value}%</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold px-1">Wallet Transactions</h2>
+              <DataTable
+                columns={txnColumns}
+                rows={wallet.data ? txns.data : null}
+                rowKey={(r) => r.id}
+                isLoading={wallet.isLoading || txns.isLoading}
+                error={wallet.data ? txns.error : 'Admin wallet not found'}
+                onRetry={txns.refresh}
+                searchPlaceholder="Search transactions..."
+                pageSize={8}
+                emptyMessage="No transactions"
+              />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-sm font-semibold px-1">Withdrawal History</h2>
+              <DataTable
+                columns={withdrawalColumns}
+                rows={withdrawals.data}
+                rowKey={(r) => String(r.id)}
+                isLoading={withdrawals.isLoading}
+                error={withdrawals.error}
+                onRetry={withdrawals.refresh}
+                searchPlaceholder="Search withdrawals..."
+                pageSize={8}
+                emptyMessage="No withdrawals"
+              />
+            </div>
+          </div>
+        </>
+      )}
 
-        {/* Transaction Volume */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart2 className="h-5 w-5" />
-              Transaction Volume
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-[200px]">
-                <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                      color: 'hsl(var(--card-foreground))',
-                    }}
-                    formatter={(value: number) => [value, 'Transactions']}
-                  />
-                  <Bar dataKey="transactions" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Withdrawals Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              Withdrawals & Disbursements
-            </CardTitle>
-            <Button size="sm" onClick={() => setShowWithdrawDialog(true)}>
-              <Download className="h-4 w-4 mr-2" />
-              Request Withdrawal
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            {recentWithdrawals.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground text-sm">
-                No withdrawals yet. Request your first withdrawal above.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/40">
-                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Amount</th>
-                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Phone</th>
-                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Provider</th>
-                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {recentWithdrawals.map((withdrawal) => (
-                      <tr key={withdrawal.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {withdrawal.createdAt ? format(parseISO(withdrawal.createdAt), 'MMM dd, yyyy HH:mm') : '—'}
-                        </td>
-                        <td className="px-4 py-3 font-medium">{formatCurrency(withdrawal.amount)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{withdrawal.phone}</td>
-                        <td className="px-4 py-3">{withdrawal.provider}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            withdrawal.status === 'Completed'
-                              ? 'bg-emerald-500/10 text-emerald-600'
-                              : withdrawal.status === 'Pending'
-                              ? 'bg-yellow-500/10 text-yellow-600'
-                              : 'bg-destructive/10 text-destructive'
-                          }`}>
-                            {withdrawal.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <WithdrawAdminFundsDialog
-        open={showWithdrawDialog}
-        onOpenChange={setShowWithdrawDialog}
-        currentBalance={adminBalance}
-        onWithdrawalSuccess={(newBalance) => {
-          setAdminBalance(newBalance);
-          withdrawalsService.getAdminWithdrawals().then(setRecentWithdrawals).catch(() => {});
+      <WithdrawDialog
+        open={withdrawOpen}
+        onOpenChange={setWithdrawOpen}
+        balance={wallet.data?.balance ?? 0}
+        onDone={() => {
+          wallet.refresh();
+          txns.refresh();
+          withdrawals.refresh();
         }}
       />
-    </PageTransition>
+    </>
+  );
+}
+
+function WithdrawDialog({
+  open,
+  onOpenChange,
+  balance,
+  onDone,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  balance: number;
+  onDone: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [phone, setPhone] = useState('');
+  const [provider, setProvider] = useState<'MTN' | 'Airtel'>('MTN');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) return toast.error('Enter a valid amount');
+    if (amt > balance) return toast.error('Amount exceeds wallet balance');
+    if (!phone) return toast.error('Enter a mobile money phone number');
+    setSaving(true);
+    try {
+      const res = await withdrawalsService.initiateAdminWithdrawal({ amount: amt, phone, provider });
+      toast.success(`Withdrawal initiated — new balance ${formatMoney(Number(res.newBalance ?? balance - amt))}`);
+      setAmount('');
+      setPhone('');
+      onOpenChange(false);
+      onDone();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Withdrawal failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Withdraw from Admin Wallet</DialogTitle>
+          <DialogDescription>Available balance: {formatMoney(balance)}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Amount (UGX)</Label>
+            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="50000" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="077..." />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Provider</Label>
+              <Select value={provider} onValueChange={(v) => setProvider(v as 'MTN' | 'Airtel')}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MTN">MTN MoMo</SelectItem>
+                  <SelectItem value="Airtel">Airtel Money</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Withdraw
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

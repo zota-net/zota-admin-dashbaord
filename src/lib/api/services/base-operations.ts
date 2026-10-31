@@ -150,6 +150,35 @@ export const bopDevicesService = {
   getByClient: (clientId: string) =>
     api.get<ApiResponse<BopDevice[]>>(`/bop/devices/client/${clientId}`).then((response) => response.data ?? []),
 };
+// ─── Tutorials (Help Library) ─────────────────────────────────────────────────
+
+export interface Tutorial {
+  id: number;
+  title: string;
+  description: string;
+  videoUrl: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export const tutorialsService = {
+  getAll: () =>
+    api.get<ApiResponse<Tutorial[]>>('/bop/tutorials').then((r) => {
+      const data = r.data ?? r;
+      return Array.isArray(data) ? (data as Tutorial[]) : [];
+    }),
+
+  create: (data: Omit<Tutorial, 'id' | 'createdAt'>) =>
+    api.post<ApiResponse<Tutorial>>('/bop/tutorials', data),
+
+  update: (id: number, data: Partial<Omit<Tutorial, 'id' | 'createdAt'>>) =>
+    api.put<ApiResponse<Tutorial>>(`/bop/tutorials/${id}`, data),
+
+  remove: (id: number) =>
+    api.delete<ApiResponse>(`/bop/tutorials/${id}`),
+};
+
 // ─── Support Tickets ──────────────────────────────────────────────────────────
 
 export const supportService = {
