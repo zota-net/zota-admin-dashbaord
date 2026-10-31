@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageHeader, DataTable, StatsCard, type Column } from '@/components/admin';
+import { PageHeader, DataTable, StatsCard, CardSkeleton, type Column } from '@/components/admin';
 import { clientsService, reportsService } from '@/lib/api';
 import type { VoucherSale } from '@/lib/api/types';
 import { useAsync } from '@/lib/use-async';
@@ -84,10 +84,16 @@ export default function PaymentsPage() {
       <PageHeader title="Payments" description="Every voucher purchase made across the platform" />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        {data.isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)
+        ) : (
+          <>
         <StatsCard title="Transactions" value={formatNumber(rows.length)} icon={CreditCard} description="Voucher sales" />
         <StatsCard title="Gross Volume" value={formatMoney(totals.gross)} icon={TrendingUp} variant="primary" animated={false} description="Total sale value" />
         <StatsCard title="Service Fees" value={formatMoney(totals.fees)} icon={Landmark} variant="warning" animated={false} description="Platform take" />
         <StatsCard title="Net to Clients" value={formatMoney(totals.net)} icon={Wallet} variant="success" animated={false} description="After fees" />
+          </>
+        )}
       </div>
 
       <DataTable

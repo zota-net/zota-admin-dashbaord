@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Bell, Moon, Sun, Menu, Search, Settings, LogOut, User, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Bell, Moon, Sun, Menu, Search, Settings, LogOut, User, ChevronDown, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,7 +127,11 @@ export function AdminHeader({ className }: { className?: string }) {
                 />
               </div>
               <ScrollArea className="max-h-72">
-                {results.length === 0 ? (
+                {clients === null && searchOpen ? (
+                  <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading clients…
+                  </div>
+                ) : results.length === 0 ? (
                   <div className="p-6 text-center text-sm text-muted-foreground">
                     {query ? 'No clients found' : 'Type to search platform clients'}
                   </div>

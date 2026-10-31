@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader, StatsCard, ErrorState } from '@/components/admin';
+import { Skeleton } from '@/components/ui/skeleton';
 import { clientsService, supportService } from '@/lib/api';
 import type { Client, SupportTicket } from '@/lib/api/types';
 import { useAsync } from '@/lib/use-async';
@@ -115,12 +116,24 @@ export default function AlertsPage() {
       <PageHeader title="Alerts" description="Live platform signals derived from client and ticket state" />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+        {clients.isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="min-h-[120px]" />)
+        ) : (
+          <>
         <StatsCard title="Critical" value={criticals} icon={ShieldAlert} variant={criticals > 0 ? 'danger' : 'default'} />
         <StatsCard title="Warnings" value={warnings} icon={AlertTriangle} variant={warnings > 0 ? 'warning' : 'default'} />
         <StatsCard title="Signals" value={alerts.length} icon={CircleAlert} variant="primary" />
+          </>
+        )}
       </div>
 
-      {alerts.length === 0 && !clients.isLoading ? (
+      {(clients.isLoading || tickets.isLoading) ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[110px]" />
+          ))}
+        </div>
+      ) : alerts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-14 text-muted-foreground">
             <CircleAlert className="h-8 w-8 mb-2 opacity-40" />

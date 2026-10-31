@@ -25,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { StatsCard, PageHeader, ErrorState, EmptyState, DataTable, type Column } from '@/components/admin';
+import { StatsCard, PageHeader, ErrorState, EmptyState, DataTable, CardSkeleton, type Column } from '@/components/admin';
 import { adminStatsService, type ClientOverview } from '@/lib/api';
 import { supportService } from '@/lib/api';
 import { useAsync } from '@/lib/use-async';
@@ -152,14 +152,18 @@ export default function AdminOverviewPage() {
                   variant="success"
                   animated={false}
                 />
-                <StatsCard
-                  title="Platform Revenue"
-                  value={adminWallet.data ? formatMoney(adminWallet.data.balance) : '—'}
-                  description="Admin wallet balance"
-                  icon={CircleDollarSign}
-                  variant="warning"
-                  animated={false}
-                />
+                {adminWallet.isLoading ? (
+                  <CardSkeleton />
+                ) : (
+                  <StatsCard
+                    title="Platform Revenue"
+                    value={adminWallet.data ? formatMoney(adminWallet.data.balance) : '—'}
+                    description="Admin wallet balance"
+                    icon={CircleDollarSign}
+                    variant="warning"
+                    animated={false}
+                  />
+                )}
               </>
             )}
           </div>

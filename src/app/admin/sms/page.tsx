@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { MessageSquare, Coins } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader, DataTable, StatsCard, type Column } from '@/components/admin';
+import { PageHeader, DataTable, StatsCard, CardSkeleton, type Column } from '@/components/admin';
 import { clientsService, smsService } from '@/lib/api';
 import { useAsync } from '@/lib/use-async';
 import { formatMoney } from '@/lib/format';
@@ -87,14 +87,20 @@ export default function SmsPage() {
       <PageHeader title="SMS Float" description="Messaging balances available to clients for SMS notifications" />
 
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
+        {floats.isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)
+        ) : (
+          <>
         <StatsCard title="Total Float Held" value={formatMoney(totalFloat)} icon={Coins} variant="primary" animated={false} />
         <StatsCard title="Clients With Float" value={withFloat} icon={MessageSquare} description={`of ${rows.length} accounts`} />
         <StatsCard title="Depleted Accounts" value={rows.length - withFloat} icon={MessageSquare} variant="danger" />
+          </>
+        )}
       </div>
 
       <DataTable
         columns={columns}
-        rows={floats.data !== null ? rows : null}
+        rows={floats.isLoading || clients.isLoading ? null : rows}
         rowKey={(r) => r.id}
         isLoading={floats.isLoading || clients.isLoading}
         error={floats.error}

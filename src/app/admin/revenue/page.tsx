@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageHeader, StatsCard, ErrorState, EmptyState, DataTable, type Column } from '@/components/admin';
+import { PageHeader, StatsCard, ErrorState, EmptyState, DataTable, CardSkeleton, type Column } from '@/components/admin';
 import { withdrawalsService, adminStatsService } from '@/lib/api';
 import type { AdminWithdrawal, Transaction, Wallet } from '@/lib/api/types';
 import { useAsync } from '@/lib/use-async';
@@ -112,6 +112,10 @@ export default function RevenuePage() {
       ) : (
         <>
           <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {wallet.isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)
+            ) : (
+              <>
             <StatsCard
               title="Admin Wallet"
               value={wallet.data ? formatMoney(wallet.data.balance) : '—'}
@@ -141,6 +145,8 @@ export default function RevenuePage() {
               description="Requests processed"
               icon={ArrowDownLeft}
             />
+              </>
+            )}
           </div>
 
           <Card>

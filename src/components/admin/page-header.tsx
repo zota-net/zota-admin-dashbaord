@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertCircle, Inbox, RotateCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,6 +66,10 @@ export function EmptyState({ message, icon: Icon = Inbox }: { message: string; i
       <p className="text-sm">{message}</p>
     </div>
   );
+}
+
+export function CardSkeleton({ className }: { className?: string }) {
+  return <Skeleton className={cn('min-h-[120px] rounded-xl', className)} />;
 }
 
 export function TableSkeleton({ rows = 6, cols = 5 }: { rows?: number; cols?: number }) {

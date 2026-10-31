@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -27,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PageHeader, DataTable, ErrorState, EmptyState, StatsCard, type Column } from '@/components/admin';
+import { PageHeader, DataTable, ErrorState, EmptyState, StatsCard, CardSkeleton, type Column } from '@/components/admin';
 import { clientsService, bopDevicesService, walletsService, reportsService } from '@/lib/api';
 import type {
   Client,
@@ -88,10 +89,27 @@ export default function ClientDetailPage() {
   if (client.isLoading || !data) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading client…
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-7 w-64 max-w-full" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+          </div>
+          <Skeleton className="h-9 w-40" />
         </div>
-        <StatsCardFallback />
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+        <Card className="py-0">
+          <div className="p-4 border-b border-border">
+            <Skeleton className="h-8 w-96 max-w-full rounded-lg" />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground p-4">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading client…
+          </div>
+        </Card>
       </div>
     );
   }
@@ -143,7 +161,7 @@ export default function ClientDetailPage() {
         </TabsList>
 
         <TabsContent value="transactions">
-          <WalletTab walletId={wallet.data?.id ?? null} clientId={clientId} />
+          <WalletTab walletId={wallet.data?.id ?? null} walletLoading={wallet.isLoading} clientId={clientId} />
         </TabsContent>
 
         <TabsContent value="devices">
@@ -166,22 +184,7 @@ export default function ClientDetailPage() {
   );
 }
 
-function StatsCardFallback() {
-  return (
-    <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i}>
-          <CardContent className="pt-6 animate-pulse">
-            <div className="h-3 w-24 bg-muted rounded mb-3" />
-            <div className="h-7 w-16 bg-muted rounded" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function WalletTab({ walletId, clientId }: { walletId: string | null; clientId: string }) {
+function WalletTab({ walletId, walletLoading, clientId }: { walletId: string | null; walletLoading: boolean; clientId: string }) {
   const txns = useAsync<Transaction[]>(
     () => (walletId ? walletsService.getTransactions(walletId, 100) : Promise.resolve([])),
     [walletId]
@@ -212,14 +215,29 @@ function WalletTab({ walletId, clientId }: { walletId: string | null; clientId: 
     <div className="space-y-6">
       <DataTable
         columns={columns}
-        rows={walletId ? txns.data : null}
+        rows={walletLoading ? null : walletId ? txns.data : []}
         rowKey={(r) => r.id}
-        isLoading={walletId ? txns.isLoading : false}
-        error={walletId ? null : 'No wallet found for this client'}
+        isLoading={walletLoading || txns.isLoading}
+        error={!walletLoading && !walletId ? 'No wallet found for this client' : null}
         onRetry={walletId ? txns.refresh : undefined}
         searchPlaceholder="Search transactions..."
         emptyMessage="No wallet transactions"
       />
+      {sales.isLoading && (
+        <Card className="py-0">
+          <div className="border-b border-border px-4 py-3">
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="px-4 py-2.5 flex items-center justify-between">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       {sales.data && sales.data.length > 0 && (
         <Card className="py-0">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -183,6 +184,7 @@ function TicketDialog({ ticket, onClose, onChanged }: { ticket: SupportTicket | 
               <DialogTitle className="flex items-center gap-2">
                 <Headphones className="h-5 w-5 text-primary" />
                 {t.subject}
+                {full.isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               </DialogTitle>
               <DialogDescription>
                 Client #{t.clientId} · {t.category} · opened {formatDateTime(t.createdAt)}
@@ -207,7 +209,13 @@ function TicketDialog({ ticket, onClose, onChanged }: { ticket: SupportTicket | 
             </div>
 
             <ScrollArea className="h-72 rounded-lg border border-border bg-muted/30 p-3">
-              {messages.length === 0 ? (
+              {full.isLoading && messages.length === 0 ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-3/4 rounded-xl" />
+                  ))}
+                </div>
+              ) : messages.length === 0 ? (
                 <EmptyState message="No messages yet" icon={MessageSquare} />
               ) : (
                 <div className="space-y-3 pr-3">
